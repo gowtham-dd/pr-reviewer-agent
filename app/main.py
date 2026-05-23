@@ -31,5 +31,6 @@ app.include_router(webhook_router)
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
     """Serves the highly polished, modern web dashboard."""
+    print("🖥️  [Dashboard] Serving dashboard UI to client browser...")
     from app.templates import DASHBOARD_HTML
     return DASHBOARD_HTML

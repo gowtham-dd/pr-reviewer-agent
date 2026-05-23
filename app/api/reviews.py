@@ -34,6 +34,12 @@ async def api_get_review(pr_id: str):
 async def api_mock_trigger(req: TriggerReviewRequest, background_tasks: BackgroundTasks):
     """Triggers a local mock PR review without requiring an active GitHub webhook."""
     pr_id = f"mock-{uuid.uuid4().hex[:6]}"
+    print(f"🚀 [Dashboard] Simulation Request Received!")
+    print(f"   ├─ PR Title:  '{req.pr_title}'")
+    print(f"   ├─ Repo Name: '{req.repo_name}'")
+    print(f"   ├─ Author:    @{req.author}")
+    print(f"   ├─ PR ID:     {pr_id}")
+    print(f"   └─ Spawning LangGraph workflow in BackgroundTask thread pool...")
     background_tasks.add_task(
         run_pipeline_task,
         pr_id,

@@ -1,8 +1,13 @@
 import os
 import re
+import asyncio
 from typing import Optional
 from langchain_core.messages import SystemMessage, HumanMessage
 from app.config import get_settings
+
+# Prevent concurrent API rate limits (HTTP 429) on model endpoints
+LLM_SEMAPHORE = asyncio.Semaphore(1)
+
 
 def get_chat_model():
     cfg = get_settings()
@@ -36,19 +41,33 @@ async def call_llm(system_prompt: str, user_prompt: str) -> str:
     """
     Calls the configured LLM or generates a highly realistic mock response
     if we are in 'mock' mode or missing credentials.
+    Includes parallel rate-limit handling and automatic retries.
     """
     model = get_chat_model()
     if model is not None:
-        try:
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_prompt)
-            ]
-            response = await model.ainvoke(messages)
-            return response.content
-        except Exception as e:
-            # If API call fails, fall back to smart mock with warning
-            return f"*(Warning: LLM API call failed with error: {str(e)}. Displaying simulated fallback review instead)*\n\n" + generate_mock_review(system_prompt, user_prompt)
+        async with LLM_SEMAPHORE:
+            max_retries = 3
+            backoff = 2.0
+            for attempt in range(max_retries):
+                try:
+                    messages = [
+                        SystemMessage(content=system_prompt),
+                        HumanMessage(content=user_prompt)
+                    ]
+                    response = await model.ainvoke(messages)
+                    return response.content
+                except Exception as e:
+                    # Detect rate limit 429 errors
+                    err_msg = str(e).lower()
+                    if "429" in err_msg or "rate limit" in err_msg:
+                        if attempt < max_retries - 1:
+                            print(f"⚠️ [LLM API Rate Limited] Retrying in {backoff}s (Attempt {attempt+1}/{max_retries})...")
+                            await asyncio.sleep(backoff)
+                            backoff *= 2.0
+                            continue
+                    
+                    # Fall back to smart mock if it is a different issue or retries are exhausted
+                    return f"*(Warning: LLM API call failed with error: {str(e)}. Displaying simulated fallback review instead)*\n\n" + generate_mock_review(system_prompt, user_prompt)
     else:
         return generate_mock_review(system_prompt, user_prompt)
 

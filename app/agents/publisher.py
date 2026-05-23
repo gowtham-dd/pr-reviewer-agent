@@ -73,7 +73,7 @@ async def publish_report_node(state: dict) -> dict:
                 
                 url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/reviews"
                 headers = {
-                    "Authorization": f"token {github_token}",
+                    "Authorization": f"Bearer {github_token}",
                     "Accept": "application/vnd.github.v3+json",
                     "User-Agent": "OpenReviewer-App"
                 }

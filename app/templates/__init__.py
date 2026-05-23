@@ -118,10 +118,17 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         <!-- Left Sidebar: Review Jobs List -->
         <aside class="w-80 border-r border-white/5 bg-slate-950/20 shrink-0 flex flex-col overflow-hidden">
             <div class="p-4 border-b border-white/5 flex items-center justify-between">
-                <h2 class="text-sm font-semibold text-slate-300">Active Pull Requests</h2>
+                <h2 class="text-sm font-semibold text-slate-300">Pull Request Reviews</h2>
                 <button onclick="refreshReviews()" class="p-1.5 hover:bg-white/5 text-slate-400 hover:text-white rounded-lg transition">
                     <i data-lucide="refresh-cw" class="h-4 w-4"></i>
                 </button>
+            </div>
+            
+            <!-- Sleek Interactive Filters -->
+            <div class="px-4 py-2 border-b border-white/5 flex gap-1.5 bg-slate-950/40">
+                <button onclick="setFilter('all')" id="filter-btn-all" class="text-[10px] px-2.5 py-1 rounded-lg font-semibold transition bg-cyan-600/20 text-cyan-400 border border-cyan-500/30">All</button>
+                <button onclick="setFilter('active')" id="filter-btn-active" class="text-[10px] px-2.5 py-1 rounded-lg font-semibold transition bg-slate-900/50 text-slate-400 border border-white/5 hover:text-white">Active</button>
+                <button onclick="setFilter('processed')" id="filter-btn-processed" class="text-[10px] px-2.5 py-1 rounded-lg font-semibold transition bg-slate-900/50 text-slate-400 border border-white/5 hover:text-white">Processed</button>
             </div>
             
             <div id="reviews-list" class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
@@ -527,18 +534,64 @@ index d333a33..f444b44 100644
 `
         };
 
+        function safeParseMarkdown(text) {
+            if (!text) return "";
+            if (typeof marked !== 'undefined' && marked && typeof marked.parse === 'function') {
+                return marked.parse(text);
+            }
+            // Fallback for offline/blocked marked.js CDN
+            return `<pre class="whitespace-pre-wrap font-sans text-slate-300 text-sm leading-relaxed">${text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>`;
+        }
+
         let selectedReviewId = null;
         let activeTab = "consolidated";
         let reviewsCache = {};
+        let currentFilter = "all";
 
-        // Load Lucide Icons
-        window.addEventListener("DOMContentLoaded", () => {
-            lucide.createIcons();
-            loadTemplate("vulnerability");
+        function setFilter(filterType) {
+            currentFilter = filterType;
+            const filters = ["all", "active", "processed"];
+            filters.forEach(f => {
+                const btn = document.getElementById(`filter-btn-${f}`);
+                if (btn) {
+                    if (f === filterType) {
+                        btn.className = "text-[10px] px-2.5 py-1 rounded-lg font-semibold transition bg-cyan-600/20 text-cyan-400 border border-cyan-500/30";
+                    } else {
+                        btn.className = "text-[10px] px-2.5 py-1 rounded-lg font-semibold transition bg-slate-900/50 text-slate-400 border border-white/5 hover:text-white";
+                    }
+                }
+            });
             refreshReviews();
-            loadSettings();
+        }
+
+        // Resilient Loader
+        window.addEventListener("DOMContentLoaded", () => {
+            try {
+                if (typeof lucide !== 'undefined' && lucide && typeof lucide.createIcons === 'function') {
+                    lucide.createIcons();
+                }
+            } catch (e) {
+                console.warn("Lucide setup skipped:", e);
+            }
+
+            try {
+                loadTemplate("vulnerability");
+            } catch (e) {
+                console.warn("loadTemplate setup skipped:", e);
+            }
+
+            try {
+                refreshReviews();
+            } catch (e) {
+                console.warn("refreshReviews execution failed:", e);
+            }
+
+            try {
+                loadSettings();
+            } catch (e) {
+                console.warn("loadSettings execution failed:", e);
+            }
             
-            // Poll for updates every 3 seconds to keep pipeline progress real-time!
             setInterval(pollActiveReview, 3000);
         });
 
@@ -551,6 +604,11 @@ index d333a33..f444b44 100644
         function toggleTriggerModal() {
             const modal = document.getElementById("trigger-modal");
             modal.classList.toggle("hidden");
+            const isHidden = modal.classList.contains("hidden");
+            console.log(`🔍 [UI] Simulation modal ${isHidden ? 'closed' : 'opened'}`);
+            if (!isHidden) {
+                console.log("👉 Choose a code template and click 'Start LangGraph Pipeline' to trigger the automated review flow!");
+            }
         }
 
         function toggleSettingsModal() {
@@ -651,7 +709,14 @@ index d333a33..f444b44 100644
             const title = document.getElementById("trigger-title").value;
             const diff = document.getElementById("trigger-diff").value;
 
+            console.log("🚀 [Simulation Trigger] Clicked 'Start LangGraph Pipeline'");
+            console.log(`   ├─ Repo:   ${repo}`);
+            console.log(`   ├─ Author: @${author}`);
+            console.log(`   ├─ Title:  "${title}"`);
+            console.log(`   └─ Sending POST to /api/reviews/mock-trigger...`);
+
             try {
+                const startTime = performance.now();
                 const res = await fetch("/api/reviews/mock-trigger", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -664,12 +729,24 @@ index d333a33..f444b44 100644
                 });
                 
                 const data = await res.json();
+                const duration = ((performance.now() - startTime) / 1000).toFixed(3);
+                
                 if (data.status === "accepted") {
+                    console.log(`✅ [Simulation Trigger] Success (Response time: ${duration}s)`);
+                    console.log(`   └─ Assigned PR ID: ${data.pr_id}`);
                     toggleTriggerModal();
-                    await refreshReviews();
+                    
+                    if (currentFilter === "processed") {
+                        setFilter("all");
+                    } else {
+                        await refreshReviews();
+                    }
                     selectReview(data.pr_id);
+                } else {
+                    console.error("❌ [Simulation Trigger] Server rejected the request:", data);
                 }
             } catch (err) {
+                console.error("❌ [Simulation Trigger] Fetch error encountered:", err);
                 alert("Failed to trigger review pipeline.");
             }
         }
@@ -684,9 +761,17 @@ index d333a33..f444b44 100644
                 const container = document.getElementById("reviews-list");
                 container.innerHTML = "";
 
-                const keys = Object.keys(reviews).reverse();
+                let keys = Object.keys(reviews).reverse();
+                
+                // Apply dynamic filters
+                if (currentFilter === "active") {
+                    keys = keys.filter(id => reviews[id].status === "running" || reviews[id].status === "pending" || reviews[id].status === "processing_decision");
+                } else if (currentFilter === "processed") {
+                    keys = keys.filter(id => reviews[id].status === "completed" || reviews[id].status === "approved" || reviews[id].status === "rejected");
+                }
+
                 if (keys.length === 0) {
-                    container.innerHTML = `<div class="text-center py-8 text-slate-500 text-xs"><p>No pull requests reviewed yet.</p></div>`;
+                    container.innerHTML = `<div class="text-center py-8 text-slate-500 text-xs"><p>No ${currentFilter !== 'all' ? currentFilter + ' ' : ''}pull requests found.</p></div>`;
                     return;
                 }
 
@@ -726,19 +811,39 @@ index d333a33..f444b44 100644
                     `;
                     container.appendChild(item);
                 });
+
+                // Auto-select the latest active review when the page first loads
+                if (!selectedReviewId && keys.length > 0) {
+                    selectReview(keys[0]);
+                }
             } catch (err) {
                 console.error("Failed to load reviews:", err);
             }
         }
 
         // Selection Controller
-        function selectReview(id) {
+        async function selectReview(id) {
+            if (!id) return;
             selectedReviewId = id;
             
-            // Re-render list to show active state
-            refreshReviews();
+            // Instantly apply active highlight to the selected sidebar item
+            document.querySelectorAll("#reviews-list > div").forEach(item => {
+                item.classList.remove("border-cyan-500", "bg-white/5", "glow-cyan");
+                item.classList.add("border-white/5", "hover:border-white/10", "hover:bg-white/5");
+            });
+            
+            // Try fetching the absolute latest state from the server directly to avoid race conditions
+            let r = reviewsCache[id];
+            try {
+                const res = await fetch(`/api/reviews/${id}`);
+                if (res.ok) {
+                    r = await res.json();
+                    reviewsCache[id] = r;
+                }
+            } catch (err) {
+                console.warn(`Failed to fetch fresh state for ${id}:`, err);
+            }
 
-            const r = reviewsCache[id];
             if (!r) return;
 
             document.getElementById("empty-detail-state").classList.add("hidden");
@@ -754,7 +859,7 @@ index d333a33..f444b44 100644
             const badge = document.getElementById("detail-badge");
             badge.className = "px-3 py-1 rounded-full text-xs font-medium border";
             if (r.status === "running") {
-                badge.classList.add("bg-cyan-500/10", "text-cyan-400", "border-cyan-500/20");
+                badge.classList.add("bg-cyan-500/10", "text-cyan-400", "border-cyan-500/20", "pulse-effect");
                 badge.textContent = "Agent Execution Running";
             } else if (r.status === "pending") {
                 badge.classList.add("bg-amber-500/10", "text-amber-400", "border-amber-500/20");
@@ -776,22 +881,22 @@ index d333a33..f444b44 100644
             // Populate Git Highlight diff style
             renderGitDiff(r.diff);
 
-            // Render Markdown Tab content in-browser using marked.js
+            // Render Markdown Tab content safely in-browser
             document.getElementById("tab-content-consolidated").innerHTML = r.consolidated_report 
-                ? marked.parse(r.consolidated_report) 
+                ? safeParseMarkdown(r.consolidated_report) 
                 : `<div class="text-center py-8 text-slate-500"><p class="text-sm">Consolidated report will appear once all agents finish scanning.</p></div>`;
             
             document.getElementById("tab-content-security").innerHTML = r.security_report 
-                ? marked.parse(r.security_report) 
+                ? safeParseMarkdown(r.security_report) 
                 : `<div class="text-center py-8 text-slate-500"><p class="text-sm">Scanning code for OWASP Top 10 vulnerabilities...</p></div>`;
             
             document.getElementById("tab-content-quality").innerHTML = r.quality_report 
-                ? marked.parse(r.quality_report) 
+                ? safeParseMarkdown(r.quality_report) 
                 : `<div class="text-center py-8 text-slate-500"><p class="text-sm">Calculating PEP-8 naming, lint, and cognitive complexity rules...</p></div>`;
             
             // Populate Test markdown report
             document.getElementById("test-markdown-report").innerHTML = r.test_report 
-                ? marked.parse(r.test_report) 
+                ? safeParseMarkdown(r.test_report) 
                 : `<div class="text-center py-8 text-slate-500"><p class="text-sm">Checking unit test coverage and drafting Pytest mocks...</p></div>`;
             
             // Populate test results if already executed
@@ -810,7 +915,7 @@ index d333a33..f444b44 100644
             }
             
             document.getElementById("tab-content-doc").innerHTML = r.documentation_report 
-                ? marked.parse(r.documentation_report) 
+                ? safeParseMarkdown(r.documentation_report) 
                 : `<div class="text-center py-8 text-slate-500"><p class="text-sm">Scanning for missing PEP-257 docstrings...</p></div>`;
 
             // Display Approval gate control box only if status is 'pending'
@@ -928,7 +1033,7 @@ index d333a33..f444b44 100644
                 return;
             }
             
-            const lines = diffText.split("\n");
+            const lines = diffText.split("\\n");
             lines.forEach(line => {
                 const lineEl = document.createElement("div");
                 lineEl.className = "py-1 px-4 border-l-4 border-transparent select-none whitespace-pre-wrap";

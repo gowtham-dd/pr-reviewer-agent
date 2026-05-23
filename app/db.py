@@ -2,7 +2,8 @@ import json
 import os
 from typing import Dict, List, Any, Optional
 
-DB_FILE = "reviews.json"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_FILE = os.path.join(BASE_DIR, "reviews.json")
 
 def init_db():
     if not os.path.exists(DB_FILE):
