@@ -60,11 +60,11 @@ async def github_webhook(
     installation_id = payload.get("installation", {}).get("id")
     print(f"🆔 GitHub App Installation ID: {installation_id}")
 
-    # Fetch the code diff from GitHub using the diff_url
-    diff_url = pull_request.get("diff_url")
+    # Fetch the code diff from GitHub REST API to ensure private repos can be accessed securely via authorization tokens
+    api_diff_url = f"https://api.github.com/repos/{repo_name}/pulls/{pr_number}"
     diff_content = "Mocked diff details (GitHub API credentials or connection not active)"
-    if diff_url:
-        print(f"🔗 [Webhook] Fetching diff from: {diff_url}")
+    if api_diff_url:
+        print(f"🔗 [Webhook] Fetching diff via REST API from: {api_diff_url}")
         try:
             async with httpx.AsyncClient() as client:
                 headers = {}
@@ -91,17 +91,18 @@ async def github_webhook(
                         print("⚠️ [Webhook] No GITHUB_TOKEN or App credentials found. Running in unauthenticated mode.")
                     
                 if github_token:
-                    headers["Authorization"] = f"token {github_token}"
+                    # Bearer token is standard and robust for GitHub installation tokens and modern PATs
+                    headers["Authorization"] = f"Bearer {github_token}"
                 
                 headers["Accept"] = "application/vnd.github.v3.diff"
                 headers["User-Agent"] = "OpenReviewer-App"
                 
-                res = await client.get(diff_url, headers=headers, timeout=10.0, follow_redirects=True)
+                res = await client.get(api_diff_url, headers=headers, timeout=10.0, follow_redirects=True)
                 if res.status_code == 200:
                     diff_content = res.text
                     print(f"📄 [Webhook] Successfully downloaded code diff ({len(diff_content)} characters).")
                 else:
-                    print(f"❌ [Webhook Error] GitHub returned status code {res.status_code} while pulling diff: {res.text}")
+                    print(f"❌ [Webhook Error] GitHub REST API returned status code {res.status_code} while pulling diff: {res.text}")
         except Exception as e:
             print(f"❌ [Webhook Error] Exception occurred when downloading diff: {e}")
 
