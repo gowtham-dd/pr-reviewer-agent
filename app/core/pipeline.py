@@ -64,7 +64,7 @@ workflow.add_edge("publish_report", END)
 
 # Compile the Graph with checkpointer
 checkpointer = MemorySaver()
-review_graph = workflow.compile(checkpointer=checkpointer, interrupt_before=["publish_report"])
+review_graph = workflow.compile(checkpointer=checkpointer)
 
 
 # --- Helper Background Tasks ---
@@ -106,7 +106,9 @@ async def run_pipeline_task(pr_id: str, pr_title: str, repo_name: str, author: s
             "installation_id": installation_id,
             "optimized_diff": "",
             "static_findings": {},
-            "repo_context": ""
+            "repo_context": "",
+            "decision": "approved",
+            "feedback": "Automated system review published successfully without human interaction."
         }
         
         print("🧠 [Pipeline] Starting parallel agents execution...")
@@ -114,31 +116,30 @@ async def run_pipeline_task(pr_id: str, pr_title: str, repo_name: str, author: s
             for node_name, output in event.items():
                 print(f"⚡ [Graph Node Completed] Node: '{node_name}' finished execution.")
         
-        # Once halted, retrieve state values
+        # Once finished, retrieve state values
         state = await review_graph.aget_state(thread_config)
         state_values = state.values
         
-        print("⚖️  [Pipeline] Halted at approval gate. Compiling results...")
+        print("⚖️  [Pipeline] Review completed. Saving consolidated report to database...")
         
-        # Save aggregated reports to the database
+        # Save consolidated reports to the database
         save_review(pr_id, {
             "pr_id": pr_id,
             "pr_title": pr_title,
             "repo_name": repo_name,
             "author": author,
             "diff": diff,
-            "status": "pending",  # Awaiting human decision
+            "status": "completed",  # Complete, fully published!
             "installation_id": installation_id,
             "security_report": state_values.get("security_report", "No security feedback."),
             "quality_report": state_values.get("quality_report", "No quality feedback."),
             "test_report": state_values.get("test_report", "No test feedback."),
             "documentation_report": state_values.get("documentation_report", "No documentation feedback."),
             "consolidated_report": state_values.get("consolidated_report", ""),
-            "decision": None,
-            "feedback": None
+            "decision": "approved",
+            "feedback": "Automated system review published successfully without human interaction."
         })
-        print(f"🎉 [Pipeline Success] Finished initial analysis for thread {pr_id}. Halted for approval.")
-        print(f"🖥️  Awaiting human moderator review at http://127.0.0.1:8000\n")
+        print(f"🎉 [Pipeline Success] Finished analysis and automatically published review for thread {pr_id}.\n")
         
     except Exception as e:
         print(f"❌ [Pipeline Error] Failed execution: {e}")
