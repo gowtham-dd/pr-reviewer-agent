@@ -12,6 +12,7 @@ class CIFailurePayload(BaseModel):
     failed_step: str
     raw_logs: str
     commit_sha: Optional[str] = None
+    branch: Optional[str] = "main"
 
 router = APIRouter(prefix="/api/ci", tags=["CI/CD Failures"])
 
@@ -41,7 +42,8 @@ async def report_ci_failure(payload: CIFailurePayload, background_tasks: Backgro
         payload.failed_step,
         payload.raw_logs,
         None,
-        payload.commit_sha
+        payload.commit_sha,
+        payload.branch
     )
     return {"status": "accepted", "workflow_id": payload.workflow_id}
 

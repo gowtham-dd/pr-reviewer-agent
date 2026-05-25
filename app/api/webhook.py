@@ -40,7 +40,7 @@ async def fetch_github_workflow_logs(repo_name: str, run_id: int, token: str) ->
         print(f"❌ [Webhook Actions Logs] Error while fetching/extracting zip logs: {e}")
         return f"Error retrieving logs: {str(e)}"
 
-async def handle_ci_workflow_failure(repo_name: str, run_id: int, workflow_name: str, installation_id: Optional[int], commit_sha: Optional[str] = None):
+async def handle_ci_workflow_failure(repo_name: str, run_id: int, workflow_name: str, installation_id: Optional[int], commit_sha: Optional[str] = None, branch: str = "main"):
     """Background task to fetch workflow logs and execute CI failure analysis."""
     cfg = get_settings()
     github_token = None
@@ -69,7 +69,8 @@ async def handle_ci_workflow_failure(repo_name: str, run_id: int, workflow_name:
         failed_step=workflow_name,
         raw_logs=logs,
         installation_id=installation_id,
-        commit_sha=commit_sha
+        commit_sha=commit_sha,
+        branch=branch
     )
 
 @router.post("/webhook")
@@ -115,7 +116,8 @@ async def github_webhook(
             run_id = workflow_run.get("id")
             workflow_name = workflow_run.get("name", "Unknown Workflow")
             head_sha = workflow_run.get("head_sha")
-            print(f"🚨 [Webhook Event] Workflow run failed! ID: {run_id} | Name: '{workflow_name}' | Repo: {repo_name} | Commit SHA: {head_sha}")
+            branch = workflow_run.get("head_branch", "main")
+            print(f"🚨 [Webhook Event] Workflow run failed! ID: {run_id} | Name: '{workflow_name}' | Repo: {repo_name} | Commit SHA: {head_sha} | Branch: {branch}")
             
             background_tasks.add_task(
                 handle_ci_workflow_failure,
@@ -123,7 +125,8 @@ async def github_webhook(
                 run_id,
                 workflow_name,
                 installation_id,
-                head_sha
+                head_sha,
+                branch
             )
             return {"status": "accepted", "event": "workflow_run_failure", "run_id": run_id}
             

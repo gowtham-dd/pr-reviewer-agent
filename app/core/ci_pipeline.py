@@ -67,12 +67,12 @@ def preprocess_ci_logs(raw_logs: str) -> dict:
         "stacktrace": stacktrace
     }
 
-async def auto_heal_github_code(repo: str, file_path: str, new_content: str, token: str) -> bool:
+async def auto_heal_github_code(repo: str, file_path: str, new_content: str, token: str, branch: str = "main") -> bool:
     """
     Self-Healing Engine. Automatically updates repository files on GitHub 
     to fix code errors, triggering successful CI re-runs autonomously.
     """
-    print(f"⚙️  [Self-Healing] Resolving GitHub state for: {file_path} in {repo}")
+    print(f"⚙️  [Self-Healing] Resolving GitHub state for: {file_path} in {repo} on branch {branch}")
     headers = {
         "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.github.v3+json",
@@ -81,11 +81,11 @@ async def auto_heal_github_code(repo: str, file_path: str, new_content: str, tok
     
     try:
         # 1. Fetch file meta to get its active Git SHA
-        content_url = f"https://api.github.com/repos/{repo}/contents/{file_path}"
+        content_url = f"https://api.github.com/repos/{repo}/contents/{file_path}?ref={branch}"
         async with httpx.AsyncClient() as client:
             res = await client.get(content_url, headers=headers, timeout=5.0)
             if res.status_code != 200:
-                print(f"⚠️  [Self-Healing Failed] Could not find file {file_path} in GitHub.")
+                print(f"⚠️  [Self-Healing Failed] Could not find file {file_path} in GitHub on branch {branch}.")
                 return False
             
             file_meta = res.json()
@@ -99,7 +99,7 @@ async def auto_heal_github_code(repo: str, file_path: str, new_content: str, tok
             "message": f"fix(ci): automatically heal build failure in {file_path}",
             "content": encoded_content,
             "sha": current_sha,
-            "branch": "main"
+            "branch": branch
         }
         
         async with httpx.AsyncClient() as client:
@@ -121,7 +121,8 @@ async def run_ci_pipeline_task(
     failed_step: str,
     raw_logs: str,
     installation_id: Optional[int] = None,
-    commit_sha: Optional[str] = None
+    commit_sha: Optional[str] = None,
+    branch: str = "main"
 ):
     """Runs the token-optimized CI/CD failure analysis pipeline."""
     print(f"\n⚙️  [CI Pipeline] Starting analysis for workflow: {workflow_id} in {repo_name}")
@@ -204,8 +205,17 @@ async def run_ci_pipeline_task(
                 if code_blocks and file_match:
                     file_path = file_match.group(1).strip()
                     corrected_code = code_blocks[0]
+                    
+                    # Robust path resolution: check if logs contain a folder prefix for this file
+                    if "/" not in file_path:
+                        path_in_logs = re.search(r"([a-zA-Z0-9_\-/]+/" + re.escape(file_path) + r")", raw_logs)
+                        if path_in_logs:
+                            resolved_path = path_in_logs.group(1).strip()
+                            print(f"[CI Pipeline] Resolved incomplete path '{file_path}' to '{resolved_path}' using log context.")
+                            file_path = resolved_path
+                            
                     print(f"[CI Pipeline] Extracted self-healing fix for: {file_path}")
-                    await auto_heal_github_code(repo_name, file_path, corrected_code, github_token)
+                    await auto_heal_github_code(repo_name, file_path, corrected_code, github_token, branch)
                 else:
                     print("[CI Pipeline] Self-Healing skipped: No code blocks or file paths resolved in AI report.")
             else:

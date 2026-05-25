@@ -26,7 +26,7 @@ async def analyze_ci_failure_node(
         "1. **Classify the Failure:** Determine the category (dependency_error, test_failure, build_failure, infra_failure, timeout_failure).\n"
         "2. **Determine the Domain:** Is the error a 'Code-side' issue or a 'Deployment/Infrastructure-side' (AWS/GCP/Docker) issue?\n"
         "3. **Generate Actionable Fix:**\n"
-        "   - **If Code-side:** Draft the exact, corrected code lines (enclosed in a fenced python/javascript code block) that the developer can copy-paste to fix it.\n"
+        "   - **If Code-side:** You MUST specify the EXACT relative repository file path (e.g. 'tests/test_ci.py' instead of 'test_ci.py') in the solution, and draft the exact, corrected code lines (enclosed in a fenced python/javascript code block) that the developer can copy-paste to fix it.\n"
         "   - **If Deployment-side (AWS, GCP, GCP IAM, AWS VPC, Docker, etc.):** Format it as a clear **GitHub Issue template** that can be posted to alert DevOps. Outline what needs to be changed in the cloud dashboard or configurations.\n\n"
         "Formatting Rules:\n"
         "1. Do NOT use bullet points for findings that contain code blocks. Bullet points cause markdown nesting and indentation bugs.\n"
@@ -34,7 +34,8 @@ async def analyze_ci_failure_node(
         "### 🔍 CI/CD Failure Root Cause\n"
         "### 🏷️ Classification & Impact\n"
         "### 🛠️ Suggested Code Fix (or Infrastructure Issue Ticket)\n"
-        "3. Always ensure your code blocks are opened and closed correctly using standard triple backticks."
+        "3. You MUST wrap the corrected code snippet in a single markdown code block starting with '```python' (or javascript/json) and ending with '```'.\n"
+        "4. You MUST clearly state the exact target relative file path immediately before the code block."
     )
     
     user_prompt = (
