@@ -26,6 +26,9 @@ class ReviewState(TypedDict):
     decision: str      # 'approved', 'rejected'
     feedback: str      # comments from human reviewer
     installation_id: Optional[int]
+    optimized_diff: str
+    static_findings: dict
+    repo_context: str
 
 # --- Graph Assembly ---
 
@@ -100,7 +103,10 @@ async def run_pipeline_task(pr_id: str, pr_title: str, repo_name: str, author: s
             "author": author,
             "diff": diff,
             "status": "running",
-            "installation_id": installation_id
+            "installation_id": installation_id,
+            "optimized_diff": "",
+            "static_findings": {},
+            "repo_context": ""
         }
         
         print("🧠 [Pipeline] Starting parallel agents execution...")
