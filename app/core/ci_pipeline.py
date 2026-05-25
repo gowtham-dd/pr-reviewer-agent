@@ -120,7 +120,8 @@ async def run_ci_pipeline_task(
     repo_name: str,
     failed_step: str,
     raw_logs: str,
-    installation_id: Optional[int] = None
+    installation_id: Optional[int] = None,
+    commit_sha: Optional[str] = None
 ):
     """Runs the token-optimized CI/CD failure analysis pipeline."""
     print(f"\n⚙️  [CI Pipeline] Starting analysis for workflow: {workflow_id} in {repo_name}")
@@ -187,12 +188,13 @@ async def run_ci_pipeline_task(
             github_token = cfg.github_token
             
         # Post to GitHub depending on domain
+        target_sha = commit_sha or workflow_id
         if github_token and repo_name:
             if domain == "code-side":
                 # If there's an active PR associated, post a comment (simulate/post)
                 print(f"[CI Pipeline] Posting PR review comment for Code-Side failure...")
                 # We can also post a status check (Red Cross ❌)
-                await post_github_check(repo_name, workflow_id, "failure", "CI/CD failure detected: Code-side bug.", github_token)
+                await post_github_check(repo_name, target_sha, "failure", "CI/CD failure detected: Code-side bug.", github_token)
                 
                 # 7. Self-Healing Commit Push back to GitHub
                 print("[CI Pipeline] Running Self-Healing Engine...")
@@ -210,7 +212,7 @@ async def run_ci_pipeline_task(
                 # Deployment-side: Post an alert Issue
                 print(f"[CI Pipeline] Creating GitHub Issue for Deployment-Side / Infra failure...")
                 await create_github_issue(repo_name, failed_step, report, github_token)
-                await post_github_check(repo_name, workflow_id, "error", "CI/CD failure detected: Cloud/Infra issue.", github_token)
+                await post_github_check(repo_name, target_sha, "error", "CI/CD failure detected: Cloud/Infra issue.", github_token)
         else:
             print("[CI Pipeline] Skipping real GitHub posting (running in local simulation mode).")
             

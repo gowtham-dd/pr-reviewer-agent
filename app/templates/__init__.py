@@ -122,31 +122,31 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         <aside class="w-80 border-r border-white/5 bg-slate-950/20 shrink-0 flex flex-col overflow-hidden">
             <!-- Navigation Switcher inside Sidebar -->
             <div class="flex border-b border-white/5 bg-slate-950/40">
-                <button onclick="switchSidebarTab('reviews')" id="sidebar-tab-reviews" class="flex-1 py-3 text-xs font-bold border-b-2 border-cyan-500 text-cyan-400 transition flex items-center justify-center gap-1.5">
+                <button onclick="switchSidebarTab('reviews')" id="sidebar-tab-reviews" class="flex-1 py-3 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5">
                     <i data-lucide="git-pull-request" class="h-3.5 w-3.5"></i>
                     PR Reviews
                 </button>
-                <button onclick="switchSidebarTab('ci')" id="sidebar-tab-ci" class="flex-1 py-3 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5">
+                <button onclick="switchSidebarTab('ci')" id="sidebar-tab-ci" class="flex-1 py-3 text-xs font-bold border-b-2 border-rose-500 text-rose-400 transition flex items-center justify-center gap-1.5">
                     <i data-lucide="alert-triangle" class="h-3.5 w-3.5"></i>
                     CI/CD Failures
                 </button>
             </div>
             
             <div class="p-3 border-b border-white/5 flex items-center justify-between bg-slate-950/10">
-                <h2 id="sidebar-list-title" class="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Pull Requests</h2>
+                <h2 id="sidebar-list-title" class="text-xs font-bold text-slate-400 uppercase tracking-wider">CI/CD Pipeline Log Files</h2>
                 <button onclick="handleRefresh()" class="p-1.5 hover:bg-white/5 text-slate-400 hover:text-white rounded-lg transition">
                     <i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i>
                 </button>
             </div>
             
             <!-- List Containers -->
-            <div id="reviews-list" class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
+            <div id="reviews-list" class="hidden flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
                 <!-- Loaded dynamically -->
                 <div class="text-center py-8 text-slate-500 text-xs">
                     <p>Loading pull requests...</p>
                 </div>
             </div>
-            <div id="ci-list" class="hidden flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
+            <div id="ci-list" class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
                 <!-- Loaded dynamically -->
                 <div class="text-center py-8 text-slate-500 text-xs">
                     <p>Loading CI/CD failures...</p>
@@ -160,10 +160,10 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             <!-- Empty State -->
             <div id="empty-detail-state" class="flex-1 flex flex-col items-center justify-center text-center p-8">
                 <div id="empty-icon-box" class="h-16 w-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 mb-4">
-                    <i data-lucide="git-pull-request" class="h-8 w-8"></i>
+                    <i data-lucide="alert-triangle" class="h-8 w-8"></i>
                 </div>
-                <h3 id="empty-title" class="font-medium text-slate-200 text-lg">No Pull Request Selected</h3>
-                <p id="empty-desc" class="text-slate-400 text-sm max-w-sm mt-1">Select an active pull request from the sidebar to inspect the automated code reviews.</p>
+                <h3 id="empty-title" class="font-medium text-slate-200 text-lg">No CI Failure Log Selected</h3>
+                <p id="empty-desc" class="text-slate-400 text-sm max-w-sm mt-1">Select a failed deployment workflow run to diagnose environment variables or code bugs.</p>
             </div>
 
             <!-- Detail Grid for Pull Request Review -->
@@ -401,7 +401,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         let selectedCIId = null;
         let activeTab = "consolidated";
         let activeCITab = "ci-report";
-        let activeSidebarTab = "reviews";
+        let activeSidebarTab = "ci";
         let reviewsCache = {};
         let ciCache = {};
 

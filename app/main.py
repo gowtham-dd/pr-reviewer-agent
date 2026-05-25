@@ -2,12 +2,6 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-# =====================================================================
-# 🚨 INTENTIONAL DEPLOYMENT FAILURE TEST
-# This non-existent import will crash startup/deployments on CI/CD
-# =====================================================================
-import deployment_test_harness_failure
-
 
 from app.api.reviews import router as reviews_router
 from app.api.settings import router as settings_router
