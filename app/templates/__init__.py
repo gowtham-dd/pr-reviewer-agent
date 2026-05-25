@@ -3,7 +3,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Automated Code Review Pipeline Dashboard</title>
+    <title>AI Automated Code Review & CI Failure Pipeline Dashboard</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -38,6 +38,9 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         }
         .glow-cyan {
             box-shadow: 0 0 25px -5px rgba(6, 182, 212, 0.35);
+        }
+        .glow-rose {
+            box-shadow: 0 0 25px -5px rgba(244, 63, 94, 0.35);
         }
         .glow-green {
             box-shadow: 0 0 25px -5px rgba(34, 197, 94, 0.35);
@@ -88,15 +91,15 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     <!-- Header bar -->
     <header class="h-16 shrink-0 border-b border-white/5 bg-slate-950/80 backdrop-blur-md flex items-center justify-between px-6 z-10">
         <div class="flex items-center gap-3">
-            <div class="h-9 w-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-500 flex items-center justify-center glow-cyan">
+            <div class="h-9 w-9 rounded-xl bg-gradient-to-tr from-cyan-500 via-indigo-500 to-rose-500 flex items-center justify-center glow-cyan">
                 <i data-lucide="shield-check" class="h-5 w-5 text-white"></i>
             </div>
             <div>
-                <span class="font-bold text-lg bg-gradient-to-r from-cyan-400 via-indigo-200 to-white bg-clip-text text-transparent">
+                <span class="font-bold text-lg bg-gradient-to-r from-cyan-400 via-indigo-200 to-rose-400 bg-clip-text text-transparent">
                     OpenReviewer
                 </span>
                 <span class="ml-2 text-xs font-mono px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                    Local LangGraph Pipeline
+                    AI Agent Platform
                 </span>
             </div>
         </div>
@@ -104,7 +107,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         <div class="flex items-center gap-6">
             <div class="flex items-center gap-2 text-xs font-medium text-slate-400 bg-slate-900 border border-white/5 py-1 px-3 rounded-lg">
                 <span class="h-2 w-2 rounded-full bg-emerald-500 pulse-effect"></span>
-                System active
+                DevOps agents active
             </div>
             <button onclick="toggleSettingsModal()" class="p-2 text-slate-400 hover:text-white transition-colors duration-150 relative">
                 <i data-lucide="settings" class="h-5 w-5"></i>
@@ -115,50 +118,55 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     <!-- Main Workspace -->
     <main class="flex-1 overflow-hidden flex flex-row">
 
-        <!-- Left Sidebar: Review Jobs List -->
+        <!-- Left Sidebar: Review Jobs & CI failures switcher -->
         <aside class="w-80 border-r border-white/5 bg-slate-950/20 shrink-0 flex flex-col overflow-hidden">
-            <div class="p-4 border-b border-white/5 flex items-center justify-between">
-                <h2 class="text-sm font-semibold text-slate-300">Pull Request Reviews</h2>
-                <button onclick="refreshReviews()" class="p-1.5 hover:bg-white/5 text-slate-400 hover:text-white rounded-lg transition">
-                    <i data-lucide="refresh-cw" class="h-4 w-4"></i>
+            <!-- Navigation Switcher inside Sidebar -->
+            <div class="flex border-b border-white/5 bg-slate-950/40">
+                <button onclick="switchSidebarTab('reviews')" id="sidebar-tab-reviews" class="flex-1 py-3 text-xs font-bold border-b-2 border-cyan-500 text-cyan-400 transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="git-pull-request" class="h-3.5 w-3.5"></i>
+                    PR Reviews
+                </button>
+                <button onclick="switchSidebarTab('ci')" id="sidebar-tab-ci" class="flex-1 py-3 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="alert-triangle" class="h-3.5 w-3.5"></i>
+                    CI/CD Failures
                 </button>
             </div>
             
-            <!-- Sleek Interactive Filters -->
-            <div class="px-4 py-2 border-b border-white/5 flex gap-1.5 bg-slate-950/40">
-                <button onclick="setFilter('all')" id="filter-btn-all" class="text-[10px] px-2.5 py-1 rounded-lg font-semibold transition bg-cyan-600/20 text-cyan-400 border border-cyan-500/30">All</button>
-                <button onclick="setFilter('active')" id="filter-btn-active" class="text-[10px] px-2.5 py-1 rounded-lg font-semibold transition bg-slate-900/50 text-slate-400 border border-white/5 hover:text-white">Active</button>
-                <button onclick="setFilter('processed')" id="filter-btn-processed" class="text-[10px] px-2.5 py-1 rounded-lg font-semibold transition bg-slate-900/50 text-slate-400 border border-white/5 hover:text-white">Processed</button>
+            <div class="p-3 border-b border-white/5 flex items-center justify-between bg-slate-950/10">
+                <h2 id="sidebar-list-title" class="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Pull Requests</h2>
+                <button onclick="handleRefresh()" class="p-1.5 hover:bg-white/5 text-slate-400 hover:text-white rounded-lg transition">
+                    <i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i>
+                </button>
             </div>
             
+            <!-- List Containers -->
             <div id="reviews-list" class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
                 <!-- Loaded dynamically -->
                 <div class="text-center py-8 text-slate-500 text-xs">
-                    <p>No pull requests reviewed yet.</p>
+                    <p>Loading pull requests...</p>
+                </div>
+            </div>
+            <div id="ci-list" class="hidden flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
+                <!-- Loaded dynamically -->
+                <div class="text-center py-8 text-slate-500 text-xs">
+                    <p>Loading CI/CD failures...</p>
                 </div>
             </div>
             
-            <!-- Quick Actions Footer -->
-            <div class="p-4 border-t border-white/5 bg-slate-950/40">
-                <button onclick="toggleTriggerModal()" class="w-full bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-medium text-sm py-2 px-4 rounded-xl transition duration-150 flex items-center justify-center gap-2 shadow-lg shadow-indigo-950/50">
-                    <i data-lucide="play" class="h-4 w-4"></i>
-                    Simulate PR Review
-                </button>
-            </div>
         </aside>
 
         <!-- Right / Core Panel: Selected Review details -->
         <section id="detail-panel" class="flex-1 overflow-hidden flex flex-col bg-slate-950/10">
             <!-- Empty State -->
             <div id="empty-detail-state" class="flex-1 flex flex-col items-center justify-center text-center p-8">
-                <div class="h-16 w-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 mb-4">
+                <div id="empty-icon-box" class="h-16 w-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 mb-4">
                     <i data-lucide="git-pull-request" class="h-8 w-8"></i>
                 </div>
-                <h3 class="font-medium text-slate-200 text-lg">No Pull Request Selected</h3>
-                <p class="text-slate-400 text-sm max-w-sm mt-1">Select an active pull request from the sidebar or simulate a mock event to see the LangGraph review pipeline in action.</p>
+                <h3 id="empty-title" class="font-medium text-slate-200 text-lg">No Pull Request Selected</h3>
+                <p id="empty-desc" class="text-slate-400 text-sm max-w-sm mt-1">Select an active pull request from the sidebar to inspect the automated code reviews.</p>
             </div>
 
-            <!-- Detail Grid -->
+            <!-- Detail Grid for Pull Request Review -->
             <div id="active-detail-content" class="hidden flex-1 overflow-hidden flex flex-col">
                 <!-- Details Header -->
                 <div class="p-6 border-b border-white/5 bg-slate-900/40 flex items-start justify-between">
@@ -192,11 +200,6 @@ DASHBOARD_HTML = """<!DOCTYPE html>
                         <i data-lucide="chevron-right" class="h-4 w-4 text-slate-600"></i>
                         <div class="flex items-center gap-2">
                             <span id="step-gate" class="h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-slate-800 text-slate-400 border border-slate-700">3</span>
-                            <span class="font-medium text-slate-400">Approval Gate</span>
-                        </div>
-                        <i data-lucide="chevron-right" class="h-4 w-4 text-slate-600"></i>
-                        <div class="flex items-center gap-2">
-                            <span id="step-publish" class="h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-slate-800 text-slate-400 border border-slate-700">4</span>
                             <span class="font-medium text-slate-400">Consolidated PR Report</span>
                         </div>
                     </div>
@@ -227,174 +230,90 @@ DASHBOARD_HTML = """<!DOCTYPE html>
                 <!-- Content Area -->
                 <div class="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-950/45">
                     <!-- Consolidated Tab -->
-                    <div id="tab-content-consolidated" class="tab-pane markdown-body">
-                        <!-- Loaded dynamically -->
-                    </div>
-
+                    <div id="tab-content-consolidated" class="tab-pane markdown-body"></div>
                     <!-- Security Tab -->
-                    <div id="tab-content-security" class="tab-pane hidden markdown-body">
-                        <!-- Loaded dynamically -->
-                    </div>
-
+                    <div id="tab-content-security" class="tab-pane hidden markdown-body"></div>
                     <!-- Quality Tab -->
-                    <div id="tab-content-quality" class="tab-pane hidden markdown-body">
-                        <!-- Loaded dynamically -->
-                    </div>
-
+                    <div id="tab-content-quality" class="tab-pane hidden markdown-body"></div>
+                    
                     <!-- Test Tab -->
                     <div id="tab-content-test" class="tab-pane hidden space-y-6">
-                        <!-- AI Analysis Report -->
-                        <div id="test-markdown-report" class="markdown-body">
-                            <!-- Loaded dynamically -->
-                        </div>
-                        
-                        <!-- Automated PR Test Runner -->
-                        <div class="mt-8 border border-white/10 rounded-2xl bg-slate-900/40 p-6">
-                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <div>
-                                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                                        <i data-lucide="play-circle" class="h-4 w-4 text-cyan-400"></i>
-                                        Automated PR Test Suite Runner
-                                    </h3>
-                                    <p class="text-xs text-slate-400 mt-1">Dynamically execute the unit test harness for the modifications introduced in this PR.</p>
-                                </div>
-                                <button onclick="runPRTests()" id="run-tests-btn" class="px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs transition duration-150 flex items-center gap-2 shrink-0 shadow-lg shadow-cyan-950/50">
-                                    <i data-lucide="play" class="h-3.5 w-3.5"></i>
-                                    Execute Test Harness
-                                </button>
-                            </div>
-                            
-                            <!-- Loading Indicator -->
-                            <div id="tests-loading" class="hidden mt-6 flex flex-col items-center justify-center py-10 bg-slate-950/40 border border-white/5 rounded-xl">
-                                <div class="h-8 w-8 rounded-full border-4 border-cyan-500/20 border-t-cyan-400 animate-spin mb-3"></div>
-                                <span class="text-xs text-slate-400 font-medium">Spawning Python environment & running pytest...</span>
-                            </div>
-                            
-                            <!-- Results Container -->
-                            <div id="tests-results" class="hidden mt-6 space-y-5">
-                                <div class="grid grid-cols-3 gap-4">
-                                    <div class="bg-slate-950/50 border border-white/5 rounded-xl p-3 text-center">
-                                        <span class="block text-[10px] uppercase font-bold tracking-wider text-slate-500">Passed Asserts</span>
-                                        <span class="block text-xl font-bold text-emerald-400 mt-1" id="test-stat-passed">0/0</span>
-                                    </div>
-                                    <div class="bg-slate-950/50 border border-white/5 rounded-xl p-3 text-center">
-                                        <span class="block text-[10px] uppercase font-bold tracking-wider text-slate-500">Coverage Pct</span>
-                                        <span class="block text-xl font-bold text-cyan-400 mt-1" id="test-stat-coverage">0%</span>
-                                    </div>
-                                    <div class="bg-slate-950/50 border border-white/5 rounded-xl p-3 text-center">
-                                        <span class="block text-[10px] uppercase font-bold tracking-wider text-slate-500">Execution Time</span>
-                                        <span class="block text-xl font-bold text-slate-300 mt-1" id="test-stat-duration">0.0s</span>
-                                    </div>
-                                </div>
-                                
-                                <div class="rounded-xl border border-emerald-500/10 bg-emerald-500/5 p-4 flex gap-3 items-start">
-                                    <i data-lucide="check-circle" class="h-5 w-5 text-emerald-400 shrink-0 mt-0.5"></i>
-                                    <div>
-                                        <span class="text-xs font-semibold text-emerald-400">All PR Tests Passed Successfully!</span>
-                                        <p class="text-[11px] text-slate-400 mt-1">Pytest exited with status code 0. No functional regressions detected.</p>
-                                    </div>
-                                </div>
-                                
-                                <div>
-                                    <span class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Stdout logs</span>
-                                    <pre class="bg-slate-950 border border-white/5 p-4 rounded-xl text-[11px] font-mono text-slate-300 max-h-60 overflow-y-auto custom-scrollbar" id="test-stat-console"></pre>
-                                </div>
-                            </div>
-                        </div>
+                        <div id="test-markdown-report" class="markdown-body"></div>
                     </div>
 
                     <!-- Doc Tab -->
-                    <div id="tab-content-doc" class="tab-pane hidden markdown-body">
-                        <!-- Loaded dynamically -->
-                    </div>
-
+                    <div id="tab-content-doc" class="tab-pane hidden markdown-body"></div>
                     <!-- Diff Tab -->
-                    <div id="tab-content-diff" class="tab-pane hidden">
-                        <div id="diff-visual-container" class="space-y-0.5 rounded-xl overflow-hidden font-mono text-xs border border-white/5 bg-slate-950/60 p-1"></div>
+                    <div id="tab-content-diff" class="tab-pane hidden font-mono text-xs border border-white/5 bg-slate-950/60 p-2 rounded-xl">
+                        <div id="diff-visual-container" class="space-y-0.5"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detail Grid for CI/CD Failure Analysis -->
+            <div id="active-ci-detail-content" class="hidden flex-1 overflow-hidden flex flex-col">
+                <!-- Details Header -->
+                <div class="p-6 border-b border-white/5 bg-slate-900/40 flex items-start justify-between">
+                    <div>
+                        <div class="flex items-center gap-3">
+                            <span id="ci-detail-repo" class="text-sm font-mono text-rose-400">repo/name</span>
+                            <span class="text-slate-600">•</span>
+                            <span id="ci-detail-step" class="text-xs text-slate-400">failed_step</span>
+                        </div>
+                        <h1 class="text-xl font-bold text-white mt-1">CI/CD Pipeline Failure Debugger</h1>
+                        <p class="text-xs font-mono text-slate-500 mt-0.5">Workflow ID: <span id="ci-detail-id">n/a</span></p>
+                    </div>
+                    
+                    <div id="ci-detail-badge" class="px-3 py-1 rounded-full text-xs font-medium border bg-rose-500/10 text-rose-400 border-rose-500/20">
+                        Status
                     </div>
                 </div>
 
-                <!-- Action Footer (Human Gate Controller) -->
-                <div id="approval-gate-box" class="hidden p-6 border-t border-white/5 bg-slate-900/60 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-                    <div class="w-full md:flex-1">
-                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Gate Feedback / Adjustments</label>
-                        <input type="text" id="approval-feedback" placeholder="Add comments here before approval (e.g. 'Security issues are valid, refactor before merging')..." class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition duration-150">
+                <!-- Classification Status Panel -->
+                <div class="px-6 py-4 bg-slate-950/40 border-b border-white/5 flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-4">
+                        <span class="text-slate-400 font-semibold uppercase tracking-wider">Analysis Classification:</span>
+                        <span id="ci-detail-domain" class="px-3 py-0.5 rounded-lg text-xs font-mono font-bold uppercase border"></span>
                     </div>
-                    <div class="flex gap-3 shrink-0 w-full md:w-auto justify-end">
-                        <button onclick="submitDecision('reject')" class="flex-1 md:flex-initial px-5 py-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-semibold text-sm transition duration-150 flex items-center justify-center gap-2">
-                            <i data-lucide="x" class="h-4 w-4"></i>
-                            Reject Review
-                        </button>
-                        <button onclick="submitDecision('approve')" class="flex-1 md:flex-initial px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-sm transition duration-150 flex items-center justify-center gap-2 glow-cyan">
-                            <i data-lucide="check" class="h-4 w-4"></i>
-                            Approve & Publish
-                        </button>
+                    <div id="ci-action-indicator" class="text-xs font-medium flex items-center gap-1.5 text-cyan-400">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+
+                <!-- Tabs Selector -->
+                <div class="flex border-b border-white/5 bg-slate-900/20 shrink-0">
+                    <button onclick="switchCITab('ci-report')" id="tab-btn-ci-report" class="px-5 py-3 text-sm font-medium border-b-2 border-rose-500 text-rose-400 transition">
+                        AI Debugging Report & Fix
+                    </button>
+                    <button onclick="switchCITab('ci-stacktrace')" id="tab-btn-ci-stacktrace" class="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                        🔍 Preprocessed Error Snippet
+                    </button>
+                    <button onclick="switchCITab('ci-raw')" id="tab-btn-ci-raw" class="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                        📜 Raw Workflow Logs
+                    </button>
+                </div>
+
+                <!-- Content Area -->
+                <div class="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-950/45">
+                    <!-- Failure Report Tab -->
+                    <div id="tab-content-ci-report" class="tab-pane-ci markdown-body"></div>
+
+                    <!-- Extracted Stacktrace Tab -->
+                    <div id="tab-content-ci-stacktrace" class="tab-pane-ci hidden">
+                        <span class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Isolated Stacktrace (Noise filtered by preprocessor)</span>
+                        <pre id="ci-detail-stacktrace" class="bg-slate-950 border border-white/5 p-4 rounded-xl text-[11px] font-mono text-rose-300 max-h-[70vh] overflow-y-auto custom-scrollbar whitespace-pre-wrap"></pre>
+                    </div>
+
+                    <!-- Raw Logs Tab -->
+                    <div id="tab-content-ci-raw" class="tab-pane-ci hidden">
+                        <span class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Complete execution logs received from workflow run</span>
+                        <pre id="ci-detail-raw" class="bg-slate-950 border border-white/5 p-4 rounded-xl text-[11px] font-mono text-slate-400 max-h-[70vh] overflow-y-auto custom-scrollbar whitespace-pre-wrap"></pre>
                     </div>
                 </div>
             </div>
         </section>
 
     </main>
-
-    <!-- Trigger Modal -->
-    <div id="trigger-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="glass-panel w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div class="p-5 border-b border-white/5 flex items-center justify-between bg-slate-900/50">
-                <div class="flex items-center gap-2">
-                    <i data-lucide="play-circle" class="h-5 w-5 text-cyan-400"></i>
-                    <h3 class="font-bold text-white text-base">Simulate GitHub Pull Request Event</h3>
-                </div>
-                <button onclick="toggleTriggerModal()" class="text-slate-400 hover:text-white">
-                    <i data-lucide="x" class="h-5 w-5"></i>
-                </button>
-            </div>
-            
-            <div class="p-6 overflow-y-auto space-y-4 custom-scrollbar">
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Repository Name</label>
-                        <input type="text" id="trigger-repo" value="octocat/hello-world" class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Author (Developer)</label>
-                        <input type="text" id="trigger-author" value="johndoe-dev" class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500">
-                    </div>
-                </div>
-                
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">PR Title</label>
-                    <input type="text" id="trigger-title" value="feat: add SQL execution layer and API access key configs" class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500">
-                </div>
-
-                <div>
-                    <div class="flex items-center justify-between mb-2">
-                        <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Select Diff Template</label>
-                        <span class="text-[10px] text-cyan-400 font-mono">Simulates real vulnerability analysis</span>
-                    </div>
-                    <select onchange="loadTemplate(this.value)" class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500">
-                        <option value="vulnerability">Template 1: OWASP Security Flaw (SQL injection & Exposed Stripe Secret Key)</option>
-                        <option value="lint">Template 2: Clean code but Missing Documentation & Docstrings</option>
-                        <option value="test">Template 3: Highly Nested Complex Math Function (Zero Test coverage)</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Git Diff Content</label>
-                    <textarea id="trigger-diff" rows="8" class="w-full bg-slate-900 border border-white/10 rounded-xl p-4 text-xs font-mono text-cyan-300 focus:outline-none focus:border-cyan-500 custom-scrollbar"></textarea>
-                </div>
-            </div>
-            
-            <div class="p-5 border-t border-white/5 bg-slate-900/50 flex justify-end gap-3">
-                <button onclick="toggleTriggerModal()" class="px-4 py-2 rounded-xl text-slate-400 hover:text-white font-medium text-sm transition">
-                    Cancel
-                </button>
-                <button onclick="runTriggerPipeline()" class="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-sm transition duration-150 flex items-center gap-2 shadow-lg shadow-cyan-950/50">
-                    <i data-lucide="play" class="h-4 w-4"></i>
-                    Start LangGraph Pipeline
-                </button>
-            </div>
-        </div>
-    </div>
 
     <!-- Settings Modal -->
     <div id="settings-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
@@ -413,13 +332,11 @@ DASHBOARD_HTML = """<!DOCTYPE html>
                 <div>
                     <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Active LLM Provider</label>
                     <select id="settings-provider" onchange="toggleProviderFields(this.value)" class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500">
-                        <option value="mock">Offline Mock Simulator (Instant, Cost-Free)</option>
                         <option value="openai">OpenAI GPT Models</option>
                         <option value="gemini">Google Gemini Models</option>
                         <option value="anthropic">Anthropic Claude Models</option>
                         <option value="groq">Groq Llama 3.3 Models</option>
                     </select>
-                    <p class="text-[10px] text-slate-500 mt-1">If Mock is chosen, AI agents generate realistic contextual responses instantly without hitting any external API keys.</p>
                 </div>
 
                 <div id="field-model" class="hidden">
@@ -450,13 +367,11 @@ DASHBOARD_HTML = """<!DOCTYPE html>
                 <div class="border-t border-white/5 pt-4">
                     <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Microsoft Teams Workflow Webhook URL</label>
                     <input type="text" id="settings-teams" placeholder="https://prod-XX.westus.logic.azure.com:443/workflows/..." class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-cyan-500">
-                    <p class="text-[10px] text-slate-500 mt-1">If specified, the server POSTs a premium Adaptive Card to Teams upon review approval.</p>
                 </div>
 
                 <div class="border-t border-white/5 pt-4">
-                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">GitHub Webhook HMAC Secret (Local Endpoint)</label>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">GitHub Webhook HMAC Secret</label>
                     <input type="text" id="settings-secret" readonly class="w-full bg-slate-950 border border-white/5 rounded-xl px-4 py-2 text-xs font-mono text-slate-400 select-all cursor-not-allowed">
-                    <p class="text-[10px] text-slate-500 mt-1">Used to verify standard GitHub payloads. Configure this secret in your GitHub App config.</p>
                 </div>
             </div>
             
@@ -472,157 +387,362 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         </div>
     </div>
 
-    <!-- Frontend Core Script logic -->
+    <!-- Script Logic -->
     <script>
-        // Core Mock Templates
-        const templates = {
-            vulnerability: `diff --git a/app/db.py b/app/db.py
-index a235bd2..c1e3a98 100644
---- a/app/db.py
-+++ b/app/db.py
-@@ -10,3 +10,12 @@ def get_user(username):
--    # Safe database implementation
--    return db.query("SELECT * FROM users WHERE username = :name", {"name": username})
-+    # FAST implementation to expedite testing
-+    # TODO: Refactor parameterized query later
-+    stripe_key = "placeholder_key"
-+    raw_query = "SELECT * FROM users WHERE username = '" + username + "'"
-+    return db.execute(raw_query)
-`,
-            lint: `diff --git a/app/calculator.py b/app/calculator.py
-index b111c11..e222d22 100644
---- a/app/calculator.py
-+++ b/app/calculator.py
-@@ -1,6 +1,8 @@
- def solve(x, y, op):
--    pass
-+    if op == '+':
-+        return x + y
-+    if op == '-':
-+        return x - y
-+    if op == '*':
-+        return x * y
-+    if op == '/':
-+        if y == 0:
-+            return 0
-+        return x / y
-`,
-            test: `diff --git a/app/auth.py b/app/auth.py
-index d333a33..f444b44 100644
---- a/app/auth.py
-+++ b/app/auth.py
-@@ -1,9 +1,24 @@
-+def parse_token_and_extract_claims(auth_header):
-+    if not auth_header:
-+        return None
-+    parts = auth_header.split()
-+    if len(parts) != 2:
-+        return None
-+    scheme, token = parts[0], parts[1]
-+    if scheme.lower() != 'bearer':
-+        return None
-+    
-+    # Complex multi-step manual JWT decoding algorithm without dependencies
-+    # Checks permissions scope mapping
-+    scopes = []
-+    if "admin" in token:
-+        scopes.append("write")
-+        scopes.append("delete")
-+    else:
-+        scopes.append("read")
-+    return {"user": "auth-client", "scopes": scopes, "token": token}
-`
-        };
-
         function safeParseMarkdown(text) {
             if (!text) return "";
             if (typeof marked !== 'undefined' && marked && typeof marked.parse === 'function') {
                 return marked.parse(text);
             }
-            // Fallback for offline/blocked marked.js CDN
             return `<pre class="whitespace-pre-wrap font-sans text-slate-300 text-sm leading-relaxed">${text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>`;
         }
 
         let selectedReviewId = null;
+        let selectedCIId = null;
         let activeTab = "consolidated";
+        let activeCITab = "ci-report";
+        let activeSidebarTab = "reviews";
         let reviewsCache = {};
-        let currentFilter = "all";
+        let ciCache = {};
 
-        function setFilter(filterType) {
-            currentFilter = filterType;
-            const filters = ["all", "active", "processed"];
-            filters.forEach(f => {
-                const btn = document.getElementById(`filter-btn-${f}`);
-                if (btn) {
-                    if (f === filterType) {
-                        btn.className = "text-[10px] px-2.5 py-1 rounded-lg font-semibold transition bg-cyan-600/20 text-cyan-400 border border-cyan-500/30";
-                    } else {
-                        btn.className = "text-[10px] px-2.5 py-1 rounded-lg font-semibold transition bg-slate-900/50 text-slate-400 border border-white/5 hover:text-white";
-                    }
-                }
-            });
-            refreshReviews();
-        }
-
-        // Resilient Loader
         window.addEventListener("DOMContentLoaded", () => {
             try {
                 if (typeof lucide !== 'undefined' && lucide && typeof lucide.createIcons === 'function') {
                     lucide.createIcons();
                 }
-            } catch (e) {
-                console.warn("Lucide setup skipped:", e);
-            }
-
-            try {
-                loadTemplate("vulnerability");
-            } catch (e) {
-                console.warn("loadTemplate setup skipped:", e);
-            }
-
-            try {
-                refreshReviews();
-            } catch (e) {
-                console.warn("refreshReviews execution failed:", e);
-            }
-
-            try {
-                loadSettings();
-            } catch (e) {
-                console.warn("loadSettings execution failed:", e);
-            }
+            } catch (e) {}
             
-            setInterval(pollActiveReview, 3000);
+            handleRefresh();
+            loadSettings();
+            
+            // Fast status polling loops
+            setInterval(pollActiveJobs, 3000);
         });
 
-        // Templates loader
-        function loadTemplate(key) {
-            document.getElementById("trigger-diff").value = templates[key].trim();
+        function switchSidebarTab(tab) {
+            activeSidebarTab = tab;
+            const title = document.getElementById("sidebar-list-title");
+            
+            // Style Tab buttons
+            const revBtn = document.getElementById("sidebar-tab-reviews");
+            const ciBtn = document.getElementById("sidebar-tab-ci");
+            
+            if (tab === "reviews") {
+                revBtn.className = "flex-1 py-3 text-xs font-bold border-b-2 border-cyan-500 text-cyan-400 transition flex items-center justify-center gap-1.5";
+                ciBtn.className = "flex-1 py-3 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5";
+                title.textContent = "Active Pull Requests";
+                
+                document.getElementById("reviews-list").classList.remove("hidden");
+                document.getElementById("ci-list").classList.add("hidden");
+                
+                if (selectedReviewId) {
+                    selectReview(selectedReviewId);
+                } else {
+                    showEmptyDetailState("git-pull-request", "No Pull Request Selected", "Select an active pull request from the sidebar to inspect the automated code reviews.");
+                }
+            } else {
+                ciBtn.className = "flex-1 py-3 text-xs font-bold border-b-2 border-rose-500 text-rose-400 transition flex items-center justify-center gap-1.5";
+                revBtn.className = "flex-1 py-3 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5";
+                title.textContent = "CI/CD Pipeline Log Files";
+                
+                document.getElementById("reviews-list").classList.add("hidden");
+                document.getElementById("ci-list").classList.remove("hidden");
+                
+                if (selectedCIId) {
+                    selectCIFailure(selectedCIId);
+                } else {
+                    showEmptyDetailState("alert-triangle", "No CI Failure Log Selected", "Select a failed deployment workflow run to diagnose environment variables or code bugs.");
+                }
+            }
+            handleRefresh();
         }
 
-        // Toggle Modals
-        function toggleTriggerModal() {
-            const modal = document.getElementById("trigger-modal");
-            modal.classList.toggle("hidden");
-            const isHidden = modal.classList.contains("hidden");
-            console.log(`🔍 [UI] Simulation modal ${isHidden ? 'closed' : 'opened'}`);
-            if (!isHidden) {
-                console.log("👉 Choose a code template and click 'Start LangGraph Pipeline' to trigger the automated review flow!");
+        function showEmptyDetailState(icon, title, desc) {
+            document.getElementById("empty-detail-state").classList.remove("hidden");
+            document.getElementById("active-detail-content").classList.add("hidden");
+            document.getElementById("active-ci-detail-content").classList.add("hidden");
+            
+            document.getElementById("empty-icon-box").innerHTML = `<i data-lucide="${icon}" class="h-8 w-8"></i>`;
+            document.getElementById("empty-title").textContent = title;
+            document.getElementById("empty-desc").textContent = desc;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        function handleRefresh() {
+            if (activeSidebarTab === "reviews") {
+                refreshReviews();
+            } else {
+                refreshCIFailures();
             }
         }
 
-        function toggleSettingsModal() {
-            const modal = document.getElementById("settings-modal");
-            modal.classList.toggle("hidden");
+        async function refreshReviews() {
+            try {
+                const res = await fetch("/api/reviews");
+                const reviews = await res.json();
+                reviewsCache = reviews;
+
+                const container = document.getElementById("reviews-list");
+                container.innerHTML = "";
+
+                let keys = Object.keys(reviews).reverse();
+                if (keys.length === 0) {
+                    container.innerHTML = `<div class="text-center py-8 text-slate-500 text-xs"><p>No pull requests reviewed yet.</p></div>`;
+                    return;
+                }
+
+                keys.forEach(id => {
+                    const r = reviews[id];
+                    let badgeClass = "bg-cyan-500/10 text-cyan-400 border-cyan-500/20";
+                    let label = r.status.toUpperCase();
+                    
+                    if (r.status === "running") {
+                        badgeClass = "bg-cyan-500/10 text-cyan-400 border-cyan-500/20 pulse-effect";
+                    } else if (r.status === "completed") {
+                        badgeClass = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+                        label = "PUBLISHED";
+                    } else if (r.status === "failed") {
+                        badgeClass = "bg-rose-500/10 text-rose-400 border-rose-500/20";
+                    }
+
+                    const activeClass = selectedReviewId === id ? "border-cyan-500 bg-white/5 glow-cyan" : "border-white/5 hover:border-white/10 hover:bg-white/5";
+
+                    const item = document.createElement("div");
+                    item.className = `p-3 rounded-xl border ${activeClass} cursor-pointer transition duration-150 flex flex-col gap-2`;
+                    item.onclick = () => selectReview(id);
+                    item.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-mono text-slate-400 truncate max-w-[140px]">${r.repo_name}</span>
+                            <span class="text-[9px] px-2 py-0.5 rounded-full font-bold border ${badgeClass}">${label}</span>
+                        </div>
+                        <h4 class="text-xs font-semibold text-white line-clamp-2">${r.pr_title}</h4>
+                        <div class="flex items-center justify-between text-[10px] text-slate-500">
+                            <span>@${r.author}</span>
+                            <span>Simulation</span>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
+
+                if (!selectedReviewId && keys.length > 0 && activeSidebarTab === "reviews") {
+                    selectReview(keys[0]);
+                }
+            } catch (err) {
+                console.error("Failed to load reviews:", err);
+            }
         }
 
-        // UI Tab Switcher
+        async function refreshCIFailures() {
+            try {
+                const res = await fetch("/api/ci");
+                const failures = await res.json();
+                ciCache = failures;
+
+                const container = document.getElementById("ci-list");
+                container.innerHTML = "";
+
+                let keys = Object.keys(failures).reverse();
+                if (keys.length === 0) {
+                    container.innerHTML = `<div class="text-center py-8 text-slate-500 text-xs"><p>No CI Failure logs analyzed yet.</p></div>`;
+                    return;
+                }
+
+                keys.forEach(id => {
+                    const f = failures[id];
+                    let badgeClass = "bg-rose-500/10 text-rose-400 border-rose-500/20";
+                    let label = f.status.toUpperCase();
+                    
+                    if (f.status === "running") {
+                        badgeClass = "bg-amber-500/10 text-amber-400 border-amber-500/20 pulse-effect";
+                        label = "ANALYZING...";
+                    } else if (f.status === "completed") {
+                        badgeClass = f.domain === "code-side" ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/20" : "bg-purple-500/10 text-purple-400 border-purple-500/20";
+                        label = f.domain.toUpperCase();
+                    }
+
+                    const activeClass = selectedCIId === id ? "border-rose-500 bg-white/5 glow-rose" : "border-white/5 hover:border-white/10 hover:bg-white/5";
+
+                    const item = document.createElement("div");
+                    item.className = `p-3 rounded-xl border ${activeClass} cursor-pointer transition duration-150 flex flex-col gap-2`;
+                    item.onclick = () => selectCIFailure(id);
+                    item.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-mono text-slate-400 truncate max-w-[140px]">${f.repo_name}</span>
+                            <span class="text-[9px] px-2 py-0.5 rounded-full font-bold border ${badgeClass}">${label}</span>
+                        </div>
+                        <h4 class="text-xs font-semibold text-white line-clamp-2">CI Fail: ${f.failed_step}</h4>
+                        <div class="flex items-center justify-between text-[10px] text-slate-500">
+                            <span>ID: ${id}</span>
+                            <span>Simulation</span>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
+
+                if (!selectedCIId && keys.length > 0 && activeSidebarTab === "ci") {
+                    selectCIFailure(keys[0]);
+                }
+            } catch (err) {
+                console.error("Failed to load CI failures:", err);
+            }
+        }
+
+        async function selectReview(id) {
+            if (!id) return;
+            selectedReviewId = id;
+            
+            document.getElementById("empty-detail-state").classList.add("hidden");
+            document.getElementById("active-detail-content").classList.remove("hidden");
+            document.getElementById("active-ci-detail-content").classList.add("hidden");
+
+            // Instantly style active sidebar
+            document.querySelectorAll("#reviews-list > div").forEach(item => {
+                item.classList.remove("border-cyan-500", "bg-white/5", "glow-cyan");
+                item.classList.add("border-white/5", "hover:border-white/10", "hover:bg-white/5");
+            });
+
+            let r = reviewsCache[id];
+            try {
+                const res = await fetch(`/api/reviews/${id}`);
+                if (res.ok) {
+                    r = await res.json();
+                    reviewsCache[id] = r;
+                }
+            } catch (err) {}
+
+            if (!r) return;
+
+            document.getElementById("detail-repo").textContent = r.repo_name;
+            document.getElementById("detail-author").textContent = `@${r.author}`;
+            document.getElementById("detail-title").textContent = r.pr_title;
+            document.getElementById("detail-id").textContent = r.pr_id;
+
+            const badge = document.getElementById("detail-badge");
+            badge.className = "px-3 py-1 rounded-full text-xs font-medium border";
+            if (r.status === "running") {
+                badge.classList.add("bg-cyan-500/10", "text-cyan-400", "border-cyan-500/20", "pulse-effect");
+                badge.textContent = "Pipeline Running";
+            } else if (r.status === "completed") {
+                badge.classList.add("bg-emerald-500/10", "text-emerald-400", "border-emerald-500/20");
+                badge.textContent = "Review Completed";
+            } else {
+                badge.classList.add("bg-rose-500/10", "text-rose-400", "border-rose-500/20");
+                badge.textContent = r.status.toUpperCase();
+            }
+
+            // Stepper
+            const step1 = document.getElementById("step-webhook");
+            const step2 = document.getElementById("step-agents");
+            const step3 = document.getElementById("step-gate");
+            
+            step1.className = "h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/40";
+            if (r.status === "running") {
+                step2.className = "h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 pulse-effect glow-cyan";
+                step3.className = "h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-slate-800 text-slate-400 border border-slate-700";
+            } else {
+                step2.className = "h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/40";
+                step3.className = "h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 glow-green";
+            }
+
+            renderGitDiff(r.diff);
+
+            document.getElementById("tab-content-consolidated").innerHTML = r.consolidated_report 
+                ? safeParseMarkdown(r.consolidated_report) 
+                : `<div class="text-center py-8 text-slate-500"><p class="text-sm">Generating token-optimized report summary...</p></div>`;
+            
+            document.getElementById("tab-content-security").innerHTML = r.security_report 
+                ? safeParseMarkdown(r.security_report) 
+                : `<div class="text-center py-8 text-slate-500"><p class="text-sm">Scanning code for OWASP Top 10 vulnerabilities...</p></div>`;
+            
+            document.getElementById("tab-content-quality").innerHTML = r.quality_report 
+                ? safeParseMarkdown(r.quality_report) 
+                : `<div class="text-center py-8 text-slate-500"><p class="text-sm">Evaluating linter formatting and complexity triggers...</p></div>`;
+            
+            document.getElementById("test-markdown-report").innerHTML = r.test_report 
+                ? safeParseMarkdown(r.test_report) 
+                : `<div class="text-center py-8 text-slate-500"><p class="text-sm">Synthesizing and scanning test coverages...</p></div>`;
+            
+            
+            document.getElementById("tab-content-doc").innerHTML = r.documentation_report 
+                ? safeParseMarkdown(r.documentation_report) 
+                : `<div class="text-center py-8 text-slate-500"><p class="text-sm">Scanning PEP-257 docstring rules...</p></div>`;
+
+            switchTab(activeTab);
+        }
+
+        async function selectCIFailure(id) {
+            if (!id) return;
+            selectedCIId = id;
+
+            document.getElementById("empty-detail-state").classList.add("hidden");
+            document.getElementById("active-detail-content").classList.add("hidden");
+            document.getElementById("active-ci-detail-content").classList.remove("hidden");
+
+            // Style active sidebar item
+            document.querySelectorAll("#ci-list > div").forEach(item => {
+                item.classList.remove("border-rose-500", "bg-white/5", "glow-rose");
+                item.classList.add("border-white/5", "hover:border-white/10", "hover:bg-white/5");
+            });
+
+            let f = ciCache[id];
+            try {
+                const res = await fetch(`/api/ci/${id}`);
+                if (res.ok) {
+                    f = await res.json();
+                    ciCache[id] = f;
+                }
+            } catch (err) {}
+
+            if (!f) return;
+
+            document.getElementById("ci-detail-repo").textContent = f.repo_name;
+            document.getElementById("ci-detail-step").textContent = f.failed_step;
+            document.getElementById("ci-detail-id").textContent = f.workflow_id;
+
+            const badge = document.getElementById("ci-detail-badge");
+            badge.className = "px-3 py-1 rounded-full text-xs font-medium border";
+            if (f.status === "running") {
+                badge.classList.add("bg-amber-500/10", "text-amber-400", "border-amber-500/20", "pulse-effect");
+                badge.textContent = "AI Analysis Running";
+                
+                document.getElementById("ci-detail-domain").className = "hidden";
+                document.getElementById("ci-action-indicator").innerHTML = ``;
+            } else if (f.status === "completed") {
+                badge.classList.add("bg-emerald-500/10", "text-emerald-400", "border-emerald-500/20");
+                badge.textContent = "Diagnosed";
+                
+                const domBadge = document.getElementById("ci-detail-domain");
+                domBadge.className = "px-3 py-0.5 rounded-lg text-xs font-mono font-bold uppercase border";
+                domBadge.textContent = f.domain;
+                if (f.domain === "code-side") {
+                    domBadge.classList.add("bg-cyan-500/10", "text-cyan-400", "border-cyan-500/30");
+                    document.getElementById("ci-action-indicator").innerHTML = `<i data-lucide="message-square" class="h-3.5 w-3.5"></i> Posted Comment to PR`;
+                } else {
+                    domBadge.classList.add("bg-purple-500/10", "text-purple-400", "border-purple-500/30");
+                    document.getElementById("ci-action-indicator").innerHTML = `<i data-lucide="plus-circle" class="h-3.5 w-3.5 text-purple-400"></i> Opened GitHub Alert Issue`;
+                }
+            } else {
+                badge.classList.add("bg-rose-500/10", "text-rose-400", "border-rose-500/20");
+                badge.textContent = f.status.toUpperCase();
+            }
+
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+
+            document.getElementById("tab-content-ci-report").innerHTML = f.report 
+                ? safeParseMarkdown(f.report) 
+                : `<div class="text-center py-8 text-slate-500"><p class="text-sm">Analysing console trace logs and writing code fix suggestions...</p></div>`;
+            
+            document.getElementById("ci-detail-stacktrace").textContent = f.stacktrace || "Awaiting extraction...";
+            document.getElementById("ci-detail-raw").textContent = f.raw_logs || "No logs available.";
+
+            switchCITab(activeCITab);
+        }
+
         function switchTab(tab) {
             activeTab = tab;
             document.querySelectorAll(".tab-pane").forEach(pane => pane.classList.add("hidden"));
             document.getElementById(`tab-content-${tab}`).classList.remove("hidden");
             
-            // Manage Active tab styling
             const tabButtons = ["consolidated", "security", "quality", "test", "doc", "diff"];
             tabButtons.forEach(t => {
                 const btn = document.getElementById(`tab-btn-${t}`);
@@ -636,12 +756,64 @@ index d333a33..f444b44 100644
             });
         }
 
-        // Fetch Pipeline settings
+        function switchCITab(tab) {
+            activeCITab = tab;
+            document.querySelectorAll(".tab-pane-ci").forEach(pane => pane.classList.add("hidden"));
+            document.getElementById(`tab-content-${tab}`).classList.remove("hidden");
+            
+            const tabButtons = ["ci-report", "ci-stacktrace", "ci-raw"];
+            tabButtons.forEach(t => {
+                const btn = document.getElementById(`tab-btn-${t}`);
+                if (t === tab) {
+                    btn.classList.add("border-rose-500", "text-rose-400");
+                    btn.classList.remove("border-transparent", "text-slate-400");
+                } else {
+                    btn.classList.add("border-transparent", "text-slate-400");
+                    btn.classList.remove("border-rose-500", "text-rose-400");
+                }
+            });
+        }
+
+        function toggleSettingsModal() {
+            document.getElementById("settings-modal").classList.toggle("hidden");
+        }
+
+        async function pollActiveJobs() {
+            if (activeSidebarTab === "reviews" && selectedReviewId) {
+                const r = reviewsCache[selectedReviewId];
+                if (r && r.status === "running") {
+                    try {
+                        const res = await fetch(`/api/reviews/${selectedReviewId}`);
+                        if (res.ok) {
+                            const latest = await res.json();
+                            if (latest.status !== r.status) {
+                                await refreshReviews();
+                                selectReview(selectedReviewId);
+                            }
+                        }
+                    } catch (e) {}
+                }
+            } else if (activeSidebarTab === "ci" && selectedCIId) {
+                const f = ciCache[selectedCIId];
+                if (f && f.status === "running") {
+                    try {
+                        const res = await fetch(`/api/ci/${selectedCIId}`);
+                        if (res.ok) {
+                            const latest = await res.json();
+                            if (latest.status !== f.status) {
+                                await refreshCIFailures();
+                                selectCIFailure(selectedCIId);
+                            }
+                        }
+                    } catch (e) {}
+                }
+            }
+        }
+
         async function loadSettings() {
             try {
                 const response = await fetch("/api/settings");
                 const data = await response.json();
-                
                 document.getElementById("settings-provider").value = data.llm_provider;
                 document.getElementById("settings-model").value = data.llm_model || "";
                 document.getElementById("settings-openai-key").value = data.openai_api_key;
@@ -650,22 +822,18 @@ index d333a33..f444b44 100644
                 document.getElementById("settings-groq-key").value = data.groq_api_key;
                 document.getElementById("settings-teams").value = data.teams_webhook_url || "";
                 document.getElementById("settings-secret").value = data.github_webhook_secret;
-
                 toggleProviderFields(data.llm_provider);
-            } catch (err) {
-                console.error("Failed to load settings:", err);
-            }
+            } catch (err) {}
         }
 
         function toggleProviderFields(provider) {
-            document.getElementById("field-model").style.display = provider === "mock" ? "none" : "block";
+            document.getElementById("field-model").style.display = "block";
             document.getElementById("field-openai").style.display = provider === "openai" ? "block" : "none";
             document.getElementById("field-gemini").style.display = provider === "gemini" ? "block" : "none";
             document.getElementById("field-anthropic").style.display = provider === "anthropic" ? "block" : "none";
             document.getElementById("field-groq").style.display = provider === "groq" ? "block" : "none";
         }
 
-        // Save settings configuration
         async function saveSettings() {
             const provider = document.getElementById("settings-provider").value;
             const model = document.getElementById("settings-model").value;
@@ -689,340 +857,16 @@ index d333a33..f444b44 100644
                         teams_webhook_url: teams
                     })
                 });
-                
                 if (res.ok) {
                     alert("Settings updated successfully!");
                     toggleSettingsModal();
                     loadSettings();
-                } else {
-                    alert("Failed to update settings.");
                 }
             } catch (err) {
-                alert("Error saving settings.");
+                alert("Error saving configurations.");
             }
         }
 
-        // Trigger local pipeline
-        async function runTriggerPipeline() {
-            const repo = document.getElementById("trigger-repo").value;
-            const author = document.getElementById("trigger-author").value;
-            const title = document.getElementById("trigger-title").value;
-            const diff = document.getElementById("trigger-diff").value;
-
-            console.log("🚀 [Simulation Trigger] Clicked 'Start LangGraph Pipeline'");
-            console.log(`   ├─ Repo:   ${repo}`);
-            console.log(`   ├─ Author: @${author}`);
-            console.log(`   ├─ Title:  "${title}"`);
-            console.log(`   └─ Sending POST to /api/reviews/mock-trigger...`);
-
-            try {
-                const startTime = performance.now();
-                const res = await fetch("/api/reviews/mock-trigger", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        pr_title: title,
-                        repo_name: repo,
-                        author: author,
-                        diff: diff
-                    })
-                });
-                
-                const data = await res.json();
-                const duration = ((performance.now() - startTime) / 1000).toFixed(3);
-                
-                if (data.status === "accepted") {
-                    console.log(`✅ [Simulation Trigger] Success (Response time: ${duration}s)`);
-                    console.log(`   └─ Assigned PR ID: ${data.pr_id}`);
-                    toggleTriggerModal();
-                    
-                    if (currentFilter === "processed") {
-                        setFilter("all");
-                    } else {
-                        await refreshReviews();
-                    }
-                    selectReview(data.pr_id);
-                } else {
-                    console.error("❌ [Simulation Trigger] Server rejected the request:", data);
-                }
-            } catch (err) {
-                console.error("❌ [Simulation Trigger] Fetch error encountered:", err);
-                alert("Failed to trigger review pipeline.");
-            }
-        }
-
-        // Fetch and refresh reviews
-        async function refreshReviews() {
-            try {
-                const res = await fetch("/api/reviews");
-                const reviews = await res.json();
-                reviewsCache = reviews;
-
-                const container = document.getElementById("reviews-list");
-                container.innerHTML = "";
-
-                let keys = Object.keys(reviews).reverse();
-                
-                // Apply dynamic filters
-                if (currentFilter === "active") {
-                    keys = keys.filter(id => reviews[id].status === "running" || reviews[id].status === "pending" || reviews[id].status === "processing_decision");
-                } else if (currentFilter === "processed") {
-                    keys = keys.filter(id => reviews[id].status === "completed" || reviews[id].status === "approved" || reviews[id].status === "rejected");
-                }
-
-                if (keys.length === 0) {
-                    container.innerHTML = `<div class="text-center py-8 text-slate-500 text-xs"><p>No ${currentFilter !== 'all' ? currentFilter + ' ' : ''}pull requests found.</p></div>`;
-                    return;
-                }
-
-                keys.forEach(id => {
-                    const r = reviews[id];
-                    let badgeClass = "";
-                    let statusLabel = r.status.toUpperCase();
-
-                    if (r.status === "running") {
-                        badgeClass = "bg-cyan-500/10 text-cyan-400 border-cyan-500/20 pulse-effect";
-                    } else if (r.status === "pending") {
-                        badgeClass = "bg-amber-500/10 text-amber-400 border-amber-500/20";
-                        statusLabel = "AWAITING GATE";
-                    } else if (r.status === "completed" || r.status === "approved") {
-                        badgeClass = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-                    } else if (r.status === "rejected") {
-                        badgeClass = "bg-rose-500/10 text-rose-400 border-rose-500/20";
-                    } else {
-                        badgeClass = "bg-slate-500/10 text-slate-400 border-white/5";
-                    }
-
-                    const activeClass = selectedReviewId === id ? "border-cyan-500 bg-white/5 glow-cyan" : "border-white/5 hover:border-white/10 hover:bg-white/5";
-
-                    const item = document.createElement("div");
-                    item.className = `p-3 rounded-xl border ${activeClass} cursor-pointer transition duration-150 flex flex-col gap-2`;
-                    item.onclick = () => selectReview(id);
-                    item.innerHTML = `
-                        <div class="flex items-center justify-between">
-                            <span class="text-[10px] font-mono text-slate-400 truncate max-w-[140px]">${r.repo_name}</span>
-                            <span class="text-[9px] px-2 py-0.5 rounded-full font-bold border ${badgeClass}">${statusLabel}</span>
-                        </div>
-                        <h4 class="text-xs font-semibold text-white line-clamp-2">${r.pr_title}</h4>
-                        <div class="flex items-center justify-between text-[10px] text-slate-500">
-                            <span>@${r.author}</span>
-                            <span>${id.startsWith("mock-") ? "Local Simulation" : "GitHub Hook"}</span>
-                        </div>
-                    `;
-                    container.appendChild(item);
-                });
-
-                // Auto-select the latest active review when the page first loads
-                if (!selectedReviewId && keys.length > 0) {
-                    selectReview(keys[0]);
-                }
-            } catch (err) {
-                console.error("Failed to load reviews:", err);
-            }
-        }
-
-        // Selection Controller
-        async function selectReview(id) {
-            if (!id) return;
-            selectedReviewId = id;
-            
-            // Instantly apply active highlight to the selected sidebar item
-            document.querySelectorAll("#reviews-list > div").forEach(item => {
-                item.classList.remove("border-cyan-500", "bg-white/5", "glow-cyan");
-                item.classList.add("border-white/5", "hover:border-white/10", "hover:bg-white/5");
-            });
-            
-            // Try fetching the absolute latest state from the server directly to avoid race conditions
-            let r = reviewsCache[id];
-            try {
-                const res = await fetch(`/api/reviews/${id}`);
-                if (res.ok) {
-                    r = await res.json();
-                    reviewsCache[id] = r;
-                }
-            } catch (err) {
-                console.warn(`Failed to fetch fresh state for ${id}:`, err);
-            }
-
-            if (!r) return;
-
-            document.getElementById("empty-detail-state").classList.add("hidden");
-            document.getElementById("active-detail-content").classList.remove("hidden");
-
-            // Populate Metadata
-            document.getElementById("detail-repo").textContent = r.repo_name;
-            document.getElementById("detail-author").textContent = `@${r.author}`;
-            document.getElementById("detail-title").textContent = r.pr_title;
-            document.getElementById("detail-id").textContent = r.pr_id;
-
-            // Populate Status Badge
-            const badge = document.getElementById("detail-badge");
-            badge.className = "px-3 py-1 rounded-full text-xs font-medium border";
-            if (r.status === "running") {
-                badge.classList.add("bg-cyan-500/10", "text-cyan-400", "border-cyan-500/20", "pulse-effect");
-                badge.textContent = "Agent Execution Running";
-            } else if (r.status === "pending") {
-                badge.classList.add("bg-amber-500/10", "text-amber-400", "border-amber-500/20");
-                badge.textContent = "Pending Approval Gate";
-            } else if (r.status === "completed" || r.status === "approved") {
-                badge.classList.add("bg-emerald-500/10", "text-emerald-400", "border-emerald-500/20");
-                badge.textContent = "Approved & Closed";
-            } else if (r.status === "rejected") {
-                badge.classList.add("bg-rose-500/10", "text-rose-400", "border-rose-500/20");
-                badge.textContent = "Rejected / Closed";
-            } else {
-                badge.classList.add("bg-slate-500/10", "text-slate-400", "border-white/5");
-                badge.textContent = r.status.toUpperCase();
-            }
-
-            // Update LangGraph Stepper UI
-            updateStepperUI(r.status);
-
-            // Populate Git Highlight diff style
-            renderGitDiff(r.diff);
-
-            // Render Markdown Tab content safely in-browser
-            document.getElementById("tab-content-consolidated").innerHTML = r.consolidated_report 
-                ? safeParseMarkdown(r.consolidated_report) 
-                : `<div class="text-center py-8 text-slate-500"><p class="text-sm">Consolidated report will appear once all agents finish scanning.</p></div>`;
-            
-            document.getElementById("tab-content-security").innerHTML = r.security_report 
-                ? safeParseMarkdown(r.security_report) 
-                : `<div class="text-center py-8 text-slate-500"><p class="text-sm">Scanning code for OWASP Top 10 vulnerabilities...</p></div>`;
-            
-            document.getElementById("tab-content-quality").innerHTML = r.quality_report 
-                ? safeParseMarkdown(r.quality_report) 
-                : `<div class="text-center py-8 text-slate-500"><p class="text-sm">Calculating PEP-8 naming, lint, and cognitive complexity rules...</p></div>`;
-            
-            // Populate Test markdown report
-            document.getElementById("test-markdown-report").innerHTML = r.test_report 
-                ? safeParseMarkdown(r.test_report) 
-                : `<div class="text-center py-8 text-slate-500"><p class="text-sm">Checking unit test coverage and drafting Pytest mocks...</p></div>`;
-            
-            // Populate test results if already executed
-            const testsResults = document.getElementById("tests-results");
-            const testsLoading = document.getElementById("tests-loading");
-            if (r.test_results) {
-                testsResults.classList.remove("hidden");
-                testsLoading.classList.add("hidden");
-                document.getElementById("test-stat-passed").textContent = r.test_results.passed;
-                document.getElementById("test-stat-coverage").textContent = r.test_results.coverage;
-                document.getElementById("test-stat-duration").textContent = r.test_results.duration;
-                document.getElementById("test-stat-console").textContent = r.test_results.console;
-            } else {
-                testsResults.classList.add("hidden");
-                testsLoading.classList.add("hidden");
-            }
-            
-            document.getElementById("tab-content-doc").innerHTML = r.documentation_report 
-                ? safeParseMarkdown(r.documentation_report) 
-                : `<div class="text-center py-8 text-slate-500"><p class="text-sm">Scanning for missing PEP-257 docstrings...</p></div>`;
-
-            // Display Approval gate control box only if status is 'pending'
-            const approvalBox = document.getElementById("approval-gate-box");
-            if (r.status === "pending") {
-                approvalBox.classList.remove("hidden");
-                document.getElementById("approval-feedback").value = "";
-            } else {
-                approvalBox.classList.add("hidden");
-            }
-
-            // Focus on active tab
-            switchTab(activeTab);
-        }
-
-        // Stepper Status Manager
-        function updateStepperUI(status) {
-            const steps = {
-                webhook: document.getElementById("step-webhook"),
-                agents: document.getElementById("step-agents"),
-                gate: document.getElementById("step-gate"),
-                publish: document.getElementById("step-publish")
-            };
-
-            // Reset stepper styles
-            Object.values(steps).forEach(el => {
-                el.className = "h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-slate-800 text-slate-400 border border-slate-700";
-            });
-
-            if (status === "running") {
-                steps.webhook.className = "h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30";
-                steps.agents.className = "h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 pulse-effect glow-cyan";
-            } else if (status === "pending") {
-                steps.webhook.className = "h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-                steps.agents.className = "h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-                steps.gate.className = "h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-amber-500/20 text-amber-400 border border-amber-500/50 pulse-effect";
-            } else if (status === "completed" || status === "approved") {
-                steps.webhook.className = "h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/40";
-                steps.agents.className = "h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/40";
-                steps.gate.className = "h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/40";
-                steps.publish.className = "h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 glow-green";
-            } else if (status === "rejected") {
-                steps.webhook.className = "h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-                steps.agents.className = "h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-                steps.gate.className = "h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs bg-rose-500/20 text-rose-400 border border-rose-500/50";
-            }
-        }
-
-        // Submit Approval Gate Decision
-        async function submitDecision(decision) {
-            if (!selectedReviewId) return;
-
-            const feedback = document.getElementById("approval-feedback").value;
-            const endpoint = `/api/reviews/${selectedReviewId}/${decision}`;
-
-            try {
-                const res = await fetch(endpoint, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ feedback: feedback })
-                });
-
-                if (res.ok) {
-                    // Update state to loading immediately
-                    const badge = document.getElementById("detail-badge");
-                    badge.className = "px-3 py-1 rounded-full text-xs font-medium border bg-slate-500/10 text-slate-400 border-white/5 pulse-effect";
-                    badge.textContent = "Processing Decision...";
-                    document.getElementById("approval-gate-box").classList.add("hidden");
-                    
-                    // Trigger a fast refresh loop to catch completion!
-                    setTimeout(async () => {
-                        await refreshReviews();
-                        selectReview(selectedReviewId);
-                    }, 1500);
-                } else {
-                    alert("Failed to submit review action.");
-                }
-            } catch (err) {
-                alert("Connection error submitting gate approval.");
-            }
-        }
-
-        // Long polling mock for active review (when status is running or processing)
-        async function pollActiveReview() {
-            if (!selectedReviewId) return;
-            const r = reviewsCache[selectedReviewId];
-            if (!r) return;
-
-            // If the currently selected review is in progress, poll the API to update UI!
-            if (r.status === "running" || r.status === "processing_decision") {
-                try {
-                    const res = await fetch(`/api/reviews/${selectedReviewId}`);
-                    if (res.ok) {
-                        const latest = await res.json();
-                        // If status updated, refresh list and reload details
-                        if (latest.status !== r.status || latest.consolidated_report !== r.consolidated_report) {
-                            await refreshReviews();
-                            selectReview(selectedReviewId);
-                        }
-                    }
-                } catch (err) {
-                    console.warn("Polling error:", err);
-                }
-            }
-        }
-
-        // Render code difference layout with green/red colors (identical to GitHub's changes made page)
         function renderGitDiff(diffText) {
             const container = document.getElementById("diff-visual-container");
             if (!container) return;
@@ -1059,48 +903,6 @@ index d333a33..f444b44 100644
                 }
                 container.appendChild(lineEl);
             });
-        }
-
-        // Run automated PR test harness and show dynamic loading spinner & statistics
-        async function runPRTests() {
-            if (!selectedReviewId) return;
-            
-            const runBtn = document.getElementById("run-tests-btn");
-            const loading = document.getElementById("tests-loading");
-            const results = document.getElementById("tests-results");
-            
-            runBtn.disabled = true;
-            runBtn.classList.add("opacity-50", "cursor-not-allowed");
-            loading.classList.remove("hidden");
-            results.classList.add("hidden");
-            
-            try {
-                const res = await fetch(`/api/reviews/${selectedReviewId}/run-tests`, {
-                    method: "POST"
-                });
-                
-                if (res.ok) {
-                    const data = await res.json();
-                    
-                    // Update cache and display results
-                    reviewsCache[selectedReviewId].test_results = data;
-                    
-                    document.getElementById("test-stat-passed").textContent = data.passed;
-                    document.getElementById("test-stat-coverage").textContent = data.coverage;
-                    document.getElementById("test-stat-duration").textContent = data.duration;
-                    document.getElementById("test-stat-console").textContent = data.console;
-                    
-                    results.classList.remove("hidden");
-                } else {
-                    alert("Failed to run tests.");
-                }
-            } catch (err) {
-                alert("Error during test runner execution.");
-            } finally {
-                loading.classList.add("hidden");
-                runBtn.disabled = false;
-                runBtn.classList.remove("opacity-50", "cursor-not-allowed");
-            }
         }
     </script>
 </body>

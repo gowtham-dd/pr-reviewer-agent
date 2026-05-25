@@ -51,7 +51,7 @@ def parse_and_optimize_diff(raw_diff: str, max_chars: int = 12000) -> str:
     Parses a git diff, filters out package locks/binaries, deletes noisy 
     context lines, and limits character count to stay within hard token budgets.
     """
-    if not raw_diff or raw_diff.strip() == "Mocked diff details (GitHub API credentials or connection not active)":
+    if not raw_diff or raw_diff.strip() == "Unavailable diff details (GitHub API credentials or connection not active)":
         return "No diff content to analyze."
 
     optimized_lines = []
@@ -275,7 +275,7 @@ def get_repo_scoped_memory(repo_name: str) -> str:
         except Exception as e:
             print(f"⚠️ [Memory Loader] Failed to read scoped memory for {repo_name}: {e}")
             
-    # 2. Fallback to predefined memories to guarantee seamless mock behavior
+    # 2. Fallback to predefined memories to guarantee seamless baseline behavior
     for key, value in DEFAULT_MEMORIES.items():
         if key in repo_name.lower():
             return (

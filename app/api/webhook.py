@@ -62,7 +62,7 @@ async def github_webhook(
 
     # Fetch the code diff from GitHub REST API to ensure private repos can be accessed securely via authorization tokens
     api_diff_url = f"https://api.github.com/repos/{repo_name}/pulls/{pr_number}"
-    diff_content = "Mocked diff details (GitHub API credentials or connection not active)"
+    diff_content = "Unavailable diff details (GitHub API credentials or connection not active)"
     if api_diff_url:
         print(f"🔗 [Webhook] Fetching diff via REST API from: {api_diff_url}")
         try:

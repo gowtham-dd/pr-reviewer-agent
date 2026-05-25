@@ -7,7 +7,7 @@ load_dotenv()
 
 class AppSettings(BaseModel):
     # LLM Settings
-    llm_provider: str = os.getenv("LLM_PROVIDER", "mock")  # mock, openai, gemini, anthropic, groq
+    llm_provider: str = os.getenv("LLM_PROVIDER", "gemini")  # openai, gemini, anthropic, groq
     openai_api_key: Optional[str] = os.getenv("OPENAI_API_KEY")
     gemini_api_key: Optional[str] = os.getenv("GEMINI_API_KEY")
     anthropic_api_key: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
