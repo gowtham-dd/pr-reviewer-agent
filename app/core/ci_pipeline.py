@@ -115,6 +115,48 @@ async def auto_heal_github_code(repo: str, file_path: str, new_content: str, tok
         print(f"⚠️  [Self-Healing Error] Git push connection failed: {e}")
         return False
 
+def extract_code_and_path(report: str, raw_logs: str) -> tuple[Optional[str], Optional[str]]:
+    """
+    Robustly extracts the code fix and the target file path from the AI report.
+    Supports carriage returns, different language tags, and loose spacing.
+    """
+    # 1. Try matching triple backtick code blocks with loose matching
+    code_blocks = re.findall(r"```[a-zA-Z]*[\r\n]+(.*?)(?:[\r\n]+)?```", report, re.DOTALL)
+    
+    if not code_blocks:
+        code_blocks = re.findall(r"```(?:python|javascript|json)?\s*(.*?)\s*```", report, re.DOTALL)
+        
+    corrected_code = None
+    if code_blocks:
+        for block in code_blocks:
+            clean_block = block.strip()
+            if any(kw in clean_block for kw in ["def ", "import ", "assert ", "class ", "const ", "let ", "function"]):
+                corrected_code = clean_block
+                break
+        if not corrected_code:
+            corrected_code = code_blocks[0].strip()
+
+    # 2. Extract file path
+    file_path = None
+    file_match = re.search(r"(?:file|path|target|at|in)\s+([a-zA-Z0-9_\-/]+\.(?:py|js|json))", report, re.IGNORECASE)
+    if not file_match:
+        file_match = re.search(r"([a-zA-Z0-9_\-/]+\.(?:py|js|json))", report)
+        
+    if file_match:
+        file_path = file_match.group(1).strip()
+        # Clean up common markdown trailing characters
+        file_path = file_path.rstrip(".:*` ")
+        
+        # Robust path resolution: check if logs contain a folder prefix for this file
+        if "/" not in file_path:
+            path_in_logs = re.search(r"([a-zA-Z0-9_\-/]+/" + re.escape(file_path) + r")", raw_logs)
+            if path_in_logs:
+                resolved_path = path_in_logs.group(1).strip()
+                print(f"[CI Path Resolver] Resolved '{file_path}' to '{resolved_path}'")
+                file_path = resolved_path
+
+    return corrected_code, file_path
+
 async def run_ci_pipeline_task(
     workflow_id: str,
     repo_name: str,
@@ -199,25 +241,13 @@ async def run_ci_pipeline_task(
                 
                 # 7. Self-Healing Commit Push back to GitHub
                 print("[CI Pipeline] Running Self-Healing Engine...")
-                code_blocks = re.findall(r"```(?:python|javascript|json)?\n(.*?)\n```", report, re.DOTALL)
-                file_match = re.search(r"([a-zA-Z0-9_\-/]+\.py|[a-zA-Z0-9_\-/]+\.js|[a-zA-Z0-9_\-/]+\.json)", report)
+                corrected_code, file_path = extract_code_and_path(report, raw_logs)
                 
-                if code_blocks and file_match:
-                    file_path = file_match.group(1).strip()
-                    corrected_code = code_blocks[0]
-                    
-                    # Robust path resolution: check if logs contain a folder prefix for this file
-                    if "/" not in file_path:
-                        path_in_logs = re.search(r"([a-zA-Z0-9_\-/]+/" + re.escape(file_path) + r")", raw_logs)
-                        if path_in_logs:
-                            resolved_path = path_in_logs.group(1).strip()
-                            print(f"[CI Pipeline] Resolved incomplete path '{file_path}' to '{resolved_path}' using log context.")
-                            file_path = resolved_path
-                            
+                if corrected_code and file_path:
                     print(f"[CI Pipeline] Extracted self-healing fix for: {file_path}")
                     await auto_heal_github_code(repo_name, file_path, corrected_code, github_token, branch)
                 else:
-                    print("[CI Pipeline] Self-Healing skipped: No code blocks or file paths resolved in AI report.")
+                    print(f"[CI Pipeline] Self-Healing skipped: corrected_code={bool(corrected_code)}, file_path={file_path}")
             else:
                 # Deployment-side: Post an alert Issue
                 print(f"[CI Pipeline] Creating GitHub Issue for Deployment-Side / Infra failure...")
