@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -33,8 +33,11 @@ app.include_router(issues_router)
 # --- Web UI Endpoint ---
 
 @app.get("/", response_class=HTMLResponse)
-async def dashboard():
+async def dashboard(response: Response):
     """Serves the highly polished, modern web dashboard."""
     print("🖥️  [Dashboard] Serving dashboard UI to client browser...")
     from app.templates import DASHBOARD_HTML
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
     return DASHBOARD_HTML

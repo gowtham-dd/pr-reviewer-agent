@@ -10,10 +10,31 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Lucide Icons (Deferred to guarantee page does not block on load) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.321.0/lucide.min.js" defer></script>
+    <script>
+        // Check if CDN loaded, if not, fallback to unpkg asynchronously
+        window.addEventListener('DOMContentLoaded', () => {
+            if (typeof lucide === 'undefined') {
+                console.log('cdnjs lucide failed, loading fallback unpkg CDN...');
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/lucide@latest';
+                script.defer = true;
+                document.head.appendChild(script);
+            }
+        });
+        
+        // Mock Lucide immediately to guarantee no exceptions can ever halt page loading
+        if (typeof window.lucide === 'undefined') {
+            window.lucide = {
+                createIcons: function() { 
+                    console.log('Lucide is loading or mocked.'); 
+                }
+            };
+        }
+    </script>
     <!-- Markdown Parser -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
     <script>
         tailwind.config = {
             theme: {
@@ -122,24 +143,25 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         <aside class="w-80 border-r border-white/5 bg-slate-950/20 shrink-0 flex flex-col overflow-hidden">
             <!-- Navigation Switcher inside Sidebar -->
             <div class="flex border-b border-white/5 bg-slate-950/40">
-                <button onclick="switchSidebarTab('reviews')" id="sidebar-tab-reviews" class="flex-1 py-3 text-[10px] font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1">
-                    <i data-lucide="git-pull-request" class="h-3 w-3"></i>
+                <button onclick="switchSidebarTab('reviews')" id="sidebar-tab-reviews" class="flex-1 py-3 text-[10px] font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5">
+                    <span class="text-xs">📂</span>
                     PR Reviews
                 </button>
-                <button onclick="switchSidebarTab('ci')" id="sidebar-tab-ci" class="flex-1 py-3 text-[10px] font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1">
-                    <i data-lucide="alert-triangle" class="h-3 w-3"></i>
+                <button onclick="switchSidebarTab('ci')" id="sidebar-tab-ci" class="flex-1 py-3 text-[10px] font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5">
+                    <span class="text-xs">⚠️</span>
                     CI/CD Failures
                 </button>
-                <button onclick="switchSidebarTab('issues')" id="sidebar-tab-issues" class="flex-1 py-3 text-[10px] font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1">
-                    <i data-lucide="alert-circle" class="h-3 w-3"></i>
+                <button onclick="switchSidebarTab('issues')" id="sidebar-tab-issues" class="flex-1 py-3 text-[10px] font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5">
+                    <span class="text-xs">🔔</span>
                     Issues
                 </button>
             </div>
             
             <div class="p-3 border-b border-white/5 flex items-center justify-between bg-slate-950/10">
                 <h2 id="sidebar-list-title" class="text-xs font-bold text-slate-400 uppercase tracking-wider">CI/CD Pipeline Log Files</h2>
-                <button onclick="handleRefresh()" class="p-1.5 hover:bg-white/5 text-slate-400 hover:text-white rounded-lg transition">
-                    <i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i>
+                <button onclick="handleRefresh()" class="p-1.5 hover:bg-white/10 hover:text-white rounded-lg transition flex items-center gap-1 bg-white/5 border border-white/10 px-2 py-0.5 shadow-sm" title="Reload data">
+                    <span class="text-[10px]" style="filter: grayscale(1);">🔄</span>
+                    <span class="text-[9px] uppercase tracking-wider font-bold">Reload</span>
                 </button>
             </div>
             
@@ -739,6 +761,9 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             document.getElementById("empty-detail-state").classList.add("hidden");
             document.getElementById("active-detail-content").classList.remove("hidden");
             document.getElementById("active-ci-detail-content").classList.add("hidden");
+            
+            const activeIssueDetail = document.getElementById("active-issue-detail-content");
+            if (activeIssueDetail) activeIssueDetail.classList.add("hidden");
 
             // Instantly style active sidebar
             document.querySelectorAll("#reviews-list > div").forEach(item => {
@@ -822,6 +847,9 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             document.getElementById("empty-detail-state").classList.add("hidden");
             document.getElementById("active-detail-content").classList.add("hidden");
             document.getElementById("active-ci-detail-content").classList.remove("hidden");
+            
+            const activeIssueDetail = document.getElementById("active-issue-detail-content");
+            if (activeIssueDetail) activeIssueDetail.classList.add("hidden");
 
             // Style active sidebar item
             document.querySelectorAll("#ci-list > div").forEach(item => {
