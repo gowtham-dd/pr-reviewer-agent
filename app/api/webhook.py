@@ -9,6 +9,7 @@ from app.config import get_settings
 from app.webhook import verify_signature
 from app.core.pipeline import run_pipeline_task
 from app.core.ci_pipeline import run_ci_pipeline_task
+from app.core.issues_pipeline import run_issues_pipeline_task
 
 router = APIRouter(tags=["Webhooks"])
 
@@ -132,8 +133,38 @@ async def github_webhook(
             
         print(f"ℹ️ [Webhook Ignored] workflow_run action: '{action}', conclusion: '{conclusion}'")
         return {"status": "ignored", "reason": "Workflow was not completed with failure status."}
+
+    # --- 2. Handle GitHub Issues ---
+    if x_github_event == "issues":
+        action = payload.get("action")
+        issue = payload.get("issue", {})
         
-    # --- 2. Handle Pull Request Code Reviews ---
+        if action in ["opened", "reopened"]:
+            issue_number = issue.get("number")
+            issue_title = issue.get("title", f"Issue #{issue_number}")
+            issue_body = issue.get("body", "")
+            author = issue.get("user", {}).get("login", "unknown-author")
+            issue_id = f"issue-{repo_name.replace('/', '-')}-{issue_number}"
+            
+            print(f"📬 [Webhook Event] Processing GitHub Issue #{issue_number}: '{issue_title}'")
+            print(f"👤 Author: @{author} | Repo: {repo_name} | Action: {action}")
+            
+            background_tasks.add_task(
+                run_issues_pipeline_task,
+                issue_id,
+                issue_number,
+                issue_title,
+                issue_body,
+                repo_name,
+                author,
+                installation_id
+            )
+            return {"status": "accepted", "event": "issue_analysis", "issue_id": issue_id}
+            
+        print(f"ℹ️ [Webhook Ignored] Issues action '{action}' is not opened or reopened.")
+        return {"status": "ignored", "reason": f"Issues action '{action}' ignored."}
+
+    # --- 3. Handle Pull Request Code Reviews ---
     if x_github_event == "pull_request" or not x_github_event:
         action = payload.get("action")
         pull_request = payload.get("pull_request")

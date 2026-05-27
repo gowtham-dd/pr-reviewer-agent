@@ -122,13 +122,17 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         <aside class="w-80 border-r border-white/5 bg-slate-950/20 shrink-0 flex flex-col overflow-hidden">
             <!-- Navigation Switcher inside Sidebar -->
             <div class="flex border-b border-white/5 bg-slate-950/40">
-                <button onclick="switchSidebarTab('reviews')" id="sidebar-tab-reviews" class="flex-1 py-3 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5">
-                    <i data-lucide="git-pull-request" class="h-3.5 w-3.5"></i>
+                <button onclick="switchSidebarTab('reviews')" id="sidebar-tab-reviews" class="flex-1 py-3 text-[10px] font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1">
+                    <i data-lucide="git-pull-request" class="h-3 w-3"></i>
                     PR Reviews
                 </button>
-                <button onclick="switchSidebarTab('ci')" id="sidebar-tab-ci" class="flex-1 py-3 text-xs font-bold border-b-2 border-rose-500 text-rose-400 transition flex items-center justify-center gap-1.5">
-                    <i data-lucide="alert-triangle" class="h-3.5 w-3.5"></i>
+                <button onclick="switchSidebarTab('ci')" id="sidebar-tab-ci" class="flex-1 py-3 text-[10px] font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1">
+                    <i data-lucide="alert-triangle" class="h-3 w-3"></i>
                     CI/CD Failures
+                </button>
+                <button onclick="switchSidebarTab('issues')" id="sidebar-tab-issues" class="flex-1 py-3 text-[10px] font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1">
+                    <i data-lucide="alert-circle" class="h-3 w-3"></i>
+                    Issues
                 </button>
             </div>
             
@@ -150,6 +154,12 @@ DASHBOARD_HTML = """<!DOCTYPE html>
                 <!-- Loaded dynamically -->
                 <div class="text-center py-8 text-slate-500 text-xs">
                     <p>Loading CI/CD failures...</p>
+                </div>
+            </div>
+            <div id="issues-list" class="hidden flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
+                <!-- Loaded dynamically -->
+                <div class="text-center py-8 text-slate-500 text-xs">
+                    <p>Loading issues...</p>
                 </div>
             </div>
             
@@ -311,6 +321,67 @@ DASHBOARD_HTML = """<!DOCTYPE html>
                     </div>
                 </div>
             </div>
+
+            <!-- Detail Grid for GitHub Issues Analysis -->
+            <div id="active-issue-detail-content" class="hidden flex-1 overflow-hidden flex flex-col">
+                <!-- Details Header -->
+                <div class="p-6 border-b border-white/5 bg-slate-900/40 flex items-start justify-between">
+                    <div>
+                        <div class="flex items-center gap-3">
+                            <span id="issue-detail-repo" class="text-sm font-mono text-cyan-400">repo/name</span>
+                            <span class="text-slate-600">•</span>
+                            <span id="issue-detail-author" class="text-xs text-slate-400">@username</span>
+                        </div>
+                        <h1 id="issue-detail-title" class="text-xl font-bold text-white mt-1">Issue Title</h1>
+                        <p class="text-xs font-mono text-slate-500 mt-0.5">Issue ID: <span id="issue-detail-id">n/a</span></p>
+                    </div>
+                    
+                    <div id="issue-detail-badge" class="px-3 py-1 rounded-full text-xs font-medium border bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
+                        Status
+                    </div>
+                </div>
+
+                <!-- Classification Status Panel -->
+                <div class="px-6 py-4 bg-slate-950/40 border-b border-white/5 flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-4">
+                        <span class="text-slate-400 font-semibold uppercase tracking-wider">Criticality:</span>
+                        <span id="issue-detail-criticality" class="px-3 py-0.5 rounded-lg text-xs font-mono font-bold uppercase border"></span>
+                    </div>
+                    <div class="text-xs font-medium flex items-center gap-1.5 text-cyan-400">
+                        <i data-lucide="message-square" class="h-3.5 w-3.5"></i> Posted Comment to GitHub Issue
+                    </div>
+                </div>
+
+                <!-- Tabs Selector -->
+                <div class="flex border-b border-white/5 bg-slate-900/20 shrink-0">
+                    <button onclick="switchIssueTab('issue-report')" id="tab-btn-issue-report" class="px-5 py-3 text-sm font-medium border-b-2 border-cyan-500 text-cyan-400 transition">
+                        AI Diagnosis & Remedy
+                    </button>
+                    <button onclick="switchIssueTab('issue-file')" id="tab-btn-issue-file" class="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                        🔍 Target File Content (<span id="issue-target-filename">none</span>)
+                    </button>
+                    <button onclick="switchIssueTab('issue-raw')" id="tab-btn-issue-raw" class="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                        📜 Raw Issue Text
+                    </button>
+                </div>
+
+                <!-- Content Area -->
+                <div class="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-950/45">
+                    <!-- Failure Report Tab -->
+                    <div id="tab-content-issue-report" class="tab-pane-issue markdown-body font-sans text-slate-300 text-sm leading-relaxed"></div>
+
+                    <!-- Referenced File Content Tab -->
+                    <div id="tab-content-issue-file" class="tab-pane-issue hidden">
+                        <span class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Source Code pulled from main branch</span>
+                        <pre id="issue-detail-file-code" class="bg-slate-950 border border-white/5 p-4 rounded-xl text-[11px] font-mono text-slate-300 max-h-[70vh] overflow-y-auto custom-scrollbar whitespace-pre-wrap"></pre>
+                    </div>
+
+                    <!-- Raw Issue Text Tab -->
+                    <div id="tab-content-issue-raw" class="tab-pane-issue hidden">
+                        <pre id="issue-detail-raw-body" class="bg-slate-950 border border-white/5 p-4 rounded-xl text-xs font-sans text-slate-400 max-h-[70vh] overflow-y-auto custom-scrollbar whitespace-pre-wrap"></pre>
+                    </div>
+                </div>
+            </div>
         </section>
 
     </main>
@@ -399,11 +470,14 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 
         let selectedReviewId = null;
         let selectedCIId = null;
+        let selectedIssueId = null;
         let activeTab = "consolidated";
         let activeCITab = "ci-report";
+        let activeIssueTab = "issue-report";
         let activeSidebarTab = "ci";
         let reviewsCache = {};
         let ciCache = {};
+        let issuesCache = {};
 
         window.addEventListener("DOMContentLoaded", () => {
             try {
@@ -426,32 +500,45 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             // Style Tab buttons
             const revBtn = document.getElementById("sidebar-tab-reviews");
             const ciBtn = document.getElementById("sidebar-tab-ci");
+            const issBtn = document.getElementById("sidebar-tab-issues");
+            
+            revBtn.className = "flex-1 py-3 text-[10px] font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1";
+            ciBtn.className = "flex-1 py-3 text-[10px] font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1";
+            issBtn.className = "flex-1 py-3 text-[10px] font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1";
+            
+            document.getElementById("reviews-list").classList.add("hidden");
+            document.getElementById("ci-list").classList.add("hidden");
+            document.getElementById("issues-list").classList.add("hidden");
             
             if (tab === "reviews") {
-                revBtn.className = "flex-1 py-3 text-xs font-bold border-b-2 border-cyan-500 text-cyan-400 transition flex items-center justify-center gap-1.5";
-                ciBtn.className = "flex-1 py-3 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5";
+                revBtn.className = "flex-1 py-3 text-[10px] font-bold border-b-2 border-cyan-500 text-cyan-400 transition flex items-center justify-center gap-1";
                 title.textContent = "Active Pull Requests";
-                
                 document.getElementById("reviews-list").classList.remove("hidden");
-                document.getElementById("ci-list").classList.add("hidden");
                 
                 if (selectedReviewId) {
                     selectReview(selectedReviewId);
                 } else {
                     showEmptyDetailState("git-pull-request", "No Pull Request Selected", "Select an active pull request from the sidebar to inspect the automated code reviews.");
                 }
-            } else {
-                ciBtn.className = "flex-1 py-3 text-xs font-bold border-b-2 border-rose-500 text-rose-400 transition flex items-center justify-center gap-1.5";
-                revBtn.className = "flex-1 py-3 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5";
+            } else if (tab === "ci") {
+                ciBtn.className = "flex-1 py-3 text-[10px] font-bold border-b-2 border-rose-500 text-rose-400 transition flex items-center justify-center gap-1";
                 title.textContent = "CI/CD Pipeline Log Files";
-                
-                document.getElementById("reviews-list").classList.add("hidden");
                 document.getElementById("ci-list").classList.remove("hidden");
                 
                 if (selectedCIId) {
                     selectCIFailure(selectedCIId);
                 } else {
                     showEmptyDetailState("alert-triangle", "No CI Failure Log Selected", "Select a failed deployment workflow run to diagnose environment variables or code bugs.");
+                }
+            } else if (tab === "issues") {
+                issBtn.className = "flex-1 py-3 text-[10px] font-bold border-b-2 border-cyan-500 text-cyan-400 transition flex items-center justify-center gap-1";
+                title.textContent = "Active GitHub Issues";
+                document.getElementById("issues-list").classList.remove("hidden");
+                
+                if (selectedIssueId) {
+                    selectIssue(selectedIssueId);
+                } else {
+                    showEmptyDetailState("alert-circle", "No GitHub Issue Selected", "Select a reported issue from the sidebar to view criticality assessment and suggested remedies.");
                 }
             }
             handleRefresh();
@@ -461,6 +548,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             document.getElementById("empty-detail-state").classList.remove("hidden");
             document.getElementById("active-detail-content").classList.add("hidden");
             document.getElementById("active-ci-detail-content").classList.add("hidden");
+            document.getElementById("active-issue-detail-content").classList.add("hidden");
             
             document.getElementById("empty-icon-box").innerHTML = `<i data-lucide="${icon}" class="h-8 w-8"></i>`;
             document.getElementById("empty-title").textContent = title;
@@ -471,8 +559,10 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         function handleRefresh() {
             if (activeSidebarTab === "reviews") {
                 refreshReviews();
-            } else {
+            } else if (activeSidebarTab === "ci") {
                 refreshCIFailures();
+            } else if (activeSidebarTab === "issues") {
+                refreshIssues();
             }
         }
 
@@ -584,6 +674,61 @@ DASHBOARD_HTML = """<!DOCTYPE html>
                 }
             } catch (err) {
                 console.error("Failed to load CI failures:", err);
+            }
+        }
+
+        async function refreshIssues() {
+            try {
+                const res = await fetch("/api/issues");
+                const issues = await res.json();
+                issuesCache = issues;
+
+                const container = document.getElementById("issues-list");
+                container.innerHTML = "";
+
+                let keys = Object.keys(issues).reverse();
+                if (keys.length === 0) {
+                    container.innerHTML = `<div class="text-center py-8 text-slate-500 text-xs"><p>No GitHub Issues analyzed yet.</p></div>`;
+                    return;
+                }
+
+                keys.forEach(id => {
+                    const iss = issues[id];
+                    let badgeClass = "bg-cyan-500/10 text-cyan-400 border-cyan-500/20";
+                    let label = iss.status.toUpperCase();
+                    
+                    if (iss.status === "running") {
+                        badgeClass = "bg-amber-500/10 text-amber-400 border-amber-500/20 pulse-effect";
+                        label = "ANALYZING...";
+                    } else if (iss.status === "completed") {
+                        badgeClass = iss.criticality === "critical" ? "bg-rose-500/10 text-rose-400 border-rose-500/20" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+                        label = iss.criticality.toUpperCase();
+                    }
+
+                    const activeClass = selectedIssueId === id ? "border-cyan-500 bg-white/5 glow-cyan" : "border-white/5 hover:border-white/10 hover:bg-white/5";
+
+                    const item = document.createElement("div");
+                    item.className = `p-3 rounded-xl border ${activeClass} cursor-pointer transition duration-150 flex flex-col gap-2`;
+                    item.onclick = () => selectIssue(id);
+                    item.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-mono text-slate-400 truncate max-w-[140px]">${iss.repo_name}</span>
+                            <span class="text-[9px] px-2 py-0.5 rounded-full font-bold border ${badgeClass}">${label}</span>
+                        </div>
+                        <h4 class="text-xs font-semibold text-white line-clamp-2">Issue #${iss.issue_number}: ${iss.issue_title}</h4>
+                        <div class="flex items-center justify-between text-[10px] text-slate-500">
+                            <span>@${iss.author}</span>
+                            <span>Simulation</span>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
+
+                if (!selectedIssueId && keys.length > 0 && activeSidebarTab === "issues") {
+                    selectIssue(keys[0]);
+                }
+            } catch (err) {
+                console.error("Failed to load issues:", err);
             }
         }
 
@@ -738,6 +883,94 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             switchCITab(activeCITab);
         }
 
+        async function selectIssue(id) {
+            if (!id) return;
+            selectedIssueId = id;
+
+            document.getElementById("empty-detail-state").classList.add("hidden");
+            document.getElementById("active-detail-content").classList.add("hidden");
+            document.getElementById("active-ci-detail-content").classList.add("hidden");
+            document.getElementById("active-issue-detail-content").classList.remove("hidden");
+
+            // Style active sidebar item
+            document.querySelectorAll("#issues-list > div").forEach(item => {
+                item.classList.remove("border-cyan-500", "bg-white/5", "glow-cyan");
+                item.classList.add("border-white/5", "hover:border-white/10", "hover:bg-white/5");
+            });
+
+            let iss = issuesCache[id];
+            try {
+                const res = await fetch(`/api/issues/${id}`);
+                if (res.ok) {
+                    iss = await res.json();
+                    issuesCache[id] = iss;
+                }
+            } catch (err) {}
+
+            if (!iss) return;
+
+            document.getElementById("issue-detail-repo").textContent = iss.repo_name;
+            document.getElementById("issue-detail-author").textContent = `@${iss.author}`;
+            document.getElementById("issue-detail-title").textContent = `Issue #${iss.issue_number}: ${iss.issue_title}`;
+            document.getElementById("issue-detail-id").textContent = iss.issue_id;
+
+            const badge = document.getElementById("issue-detail-badge");
+            badge.className = "px-3 py-1 rounded-full text-xs font-medium border";
+            if (iss.status === "running") {
+                badge.classList.add("bg-amber-500/10", "text-amber-400", "border-amber-500/20", "pulse-effect");
+                badge.textContent = "AI Analysis Running";
+                
+                document.getElementById("issue-detail-criticality").className = "hidden";
+            } else if (iss.status === "completed") {
+                badge.classList.add("bg-emerald-500/10", "text-emerald-400", "border-emerald-500/20");
+                badge.textContent = "Analyzed";
+                
+                const critBadge = document.getElementById("issue-detail-criticality");
+                critBadge.className = "px-3 py-0.5 rounded-lg text-xs font-mono font-bold uppercase border";
+                critBadge.textContent = iss.criticality;
+                if (iss.criticality === "critical") {
+                    critBadge.classList.add("bg-rose-500/10", "text-rose-400", "border-rose-500/30", "glow-rose");
+                } else {
+                    critBadge.classList.add("bg-emerald-500/10", "text-emerald-400", "border-emerald-500/30");
+                }
+            } else {
+                badge.classList.add("bg-rose-500/10", "text-rose-400", "border-rose-500/20");
+                badge.textContent = iss.status.toUpperCase();
+            }
+
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+
+            document.getElementById("tab-content-issue-report").innerHTML = iss.report 
+                ? safeParseMarkdown(iss.report) 
+                : `<div class="text-center py-8 text-slate-500"><p class="text-sm">Analysing issue context and preparing diagnostic remedy...</p></div>`;
+            
+            document.getElementById("issue-target-filename").textContent = iss.target_file || "None";
+            document.getElementById("issue-detail-file-code").textContent = iss.file_content || "No source code pulled for this issue.";
+            document.getElementById("issue-detail-raw-body").textContent = (iss.issue_title + "\n\n" + (iss.issue_body || "No description provided."));
+
+            switchIssueTab(activeIssueTab);
+        }
+
+        function switchIssueTab(tab) {
+            activeIssueTab = tab;
+            document.querySelectorAll(".tab-pane-issue").forEach(pane => pane.classList.add("hidden"));
+            document.getElementById(`tab-content-${tab}`).classList.remove("hidden");
+            
+            const tabButtons = ["issue-report", "issue-file", "issue-raw"];
+            tabButtons.forEach(t => {
+                const btn = document.getElementById(`tab-btn-${t}`);
+                if (btn) {
+                    if (t === tab) {
+                        btn.classList.add("border-cyan-500", "text-cyan-400");
+                        btn.classList.remove("border-transparent", "text-slate-400");
+                    } else {
+                        btn.classList.add("border-transparent", "text-slate-400");
+                        btn.classList.remove("border-cyan-500", "text-cyan-400");
+                    }
+                }
+            });
+        }
+
         function switchTab(tab) {
             activeTab = tab;
             document.querySelectorAll(".tab-pane").forEach(pane => pane.classList.add("hidden"));
@@ -803,6 +1036,20 @@ DASHBOARD_HTML = """<!DOCTYPE html>
                             if (latest.status !== f.status) {
                                 await refreshCIFailures();
                                 selectCIFailure(selectedCIId);
+                            }
+                        }
+                    } catch (e) {}
+                }
+            } else if (activeSidebarTab === "issues" && selectedIssueId) {
+                const iss = issuesCache[selectedIssueId];
+                if (iss && iss.status === "running") {
+                    try {
+                        const res = await fetch(`/api/issues/${selectedIssueId}`);
+                        if (res.ok) {
+                            const latest = await res.json();
+                            if (latest.status !== iss.status) {
+                                await refreshIssues();
+                                selectIssue(selectedIssueId);
                             }
                         }
                     } catch (e) {}

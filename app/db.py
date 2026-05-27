@@ -5,6 +5,7 @@ from typing import Dict, List, Any, Optional
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_FILE = os.path.join(BASE_DIR, "reviews.json")
 CI_DB_FILE = os.path.join(BASE_DIR, "ci_failures.json")
+ISSUES_DB_FILE = os.path.join(BASE_DIR, "issues.json")
 
 def init_db():
     if not os.path.exists(DB_FILE):
@@ -12,6 +13,9 @@ def init_db():
             json.dump({}, f)
     if not os.path.exists(CI_DB_FILE):
         with open(CI_DB_FILE, "w", encoding="utf-8") as f:
+            json.dump({}, f)
+    if not os.path.exists(ISSUES_DB_FILE):
+        with open(ISSUES_DB_FILE, "w", encoding="utf-8") as f:
             json.dump({}, f)
 
 def get_all_reviews() -> Dict[str, Any]:
@@ -67,3 +71,32 @@ def delete_ci_failure(workflow_id: str):
     if workflow_id in failures:
         del failures[workflow_id]
         save_all_ci_failures(failures)
+
+
+# --- Issues Storage ---
+
+def get_all_issues() -> Dict[str, Any]:
+    init_db()
+    try:
+        with open(ISSUES_DB_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def save_all_issues(issues: Dict[str, Any]):
+    with open(ISSUES_DB_FILE, "w", encoding="utf-8") as f:
+        json.dump(issues, f, indent=2)
+
+def get_issue(issue_id: str) -> Optional[Dict[str, Any]]:
+    return get_all_issues().get(issue_id)
+
+def save_issue(issue_id: str, data: Dict[str, Any]):
+    issues = get_all_issues()
+    issues[issue_id] = data
+    save_all_issues(issues)
+
+def delete_issue(issue_id: str):
+    issues = get_all_issues()
+    if issue_id in issues:
+        del issues[issue_id]
+        save_all_issues(issues)
